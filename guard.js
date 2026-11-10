@@ -24,7 +24,7 @@
     d.querySelector('#sfdRe').onclick = () => location.reload();
     d.querySelector('#sfdOut').onclick = () => { try { sfdAuth.signOut(); } catch (e) {} location.replace('login.html'); };
   }
-  function toLogin() { location.replace('login.html'); }
+  function toLogin(why) { location.replace('login.html' + (why ? '?why=' + why : '')); }
   function onDom(fn) { document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', fn) : fn(); }
 
   /* ---------- Firestore sync ---------- */
@@ -147,8 +147,8 @@
   }
   const t = +sessionStorage.getItem('sfd_login_t') || 0;
   sfdAuth.onAuthStateChanged(user => {
-    if (!user) return toLogin();
-    if (t && Date.now() - t > MAX_AGE) { sfdAuth.signOut().then(toLogin, toLogin); return; }
+    if (!user) return toLogin('nouser');
+    if (t && Date.now() - t > MAX_AGE) { sfdAuth.signOut().then(() => toLogin('expired'), () => toLogin('expired')); return; }
     if (!t) sessionStorage.setItem('sfd_login_t', String(Date.now()));
     if (ready || window.__sfdStarted) return; window.__sfdStarted = true;
     start(user).catch(e => { console.error(e); fatal('Unexpected error: ' + ((e && e.message) || e)); });

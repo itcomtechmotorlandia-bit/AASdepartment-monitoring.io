@@ -73,6 +73,8 @@
   function view(w){act=w;f.hidden=w!=='l';r.hidden=w!=='r';m.textContent=rm.textContent='';if(w==='r')$('re').value=$('u').value;tick()}
   $('forgot').onclick=function(){view('r')};$('back').onclick=function(){view('l')};
   tick();
+  var why=(location.search.match(/why=(\w+)/)||[])[1];
+  if(why&&!m.textContent){m.className='lgmsg';m.textContent=why==='expired'?'Session expired. Please log in again.':'Login was not kept by this browser (reason: '+why+'). Allow cookies/site data for this site, turn off Brave Shields or private mode, then try again.'}
   f.addEventListener('submit',async function(e){e.preventDefault();if(st().until>Date.now())return;go.disabled=true;m.textContent='';m.className='lgmsg';
     var res=await sfdLogin($('u').value,p.value);
     if(res.ok){put({n:0,until:0});location.replace('index.html');return}
