@@ -105,12 +105,16 @@
     window.SFD_USER = me;
     db = firebase.firestore(); col = db.collection('appdata');
     let remote;
-    try { remote = await loadRemote(); }
-    catch (e) {
+    try {
+      remote = await Promise.race([loadRemote(), new Promise((_, rej) => setTimeout(() => rej({ code: 'timeout' }), 20000))]);
+    } catch (e) {
       console.error(e);
-      return fatal(e && e.code === 'permission-denied'
-        ? 'This account is not allowed to open the data. Ask the administrator to check the Firestore rules.'
-        : 'Could not load the shared data. Check your internet connection and try again.');
+      const c = (e && e.code) || (e && e.message) || 'unknown';
+      return fatal(c === 'permission-denied'
+        ? 'This account is not allowed to open the data. In Firebase > Firestore > Rules, publish the rules and make sure your email is listed. (permission-denied)'
+        : c === 'timeout' || c === 'unavailable' || c === 'failed-precondition' || c === 'not-found'
+        ? 'Cannot reach the Firestore database. In the Firebase console open Build > Firestore Database and click "Create database" if you have not yet, then try again. (' + c + ')'
+        : 'Could not load the shared data. Error: ' + c);
     }
     const toUpload = [];
     KEYS.forEach(k => {
@@ -147,6 +151,6 @@
     if (t && Date.now() - t > MAX_AGE) { sfdAuth.signOut().then(toLogin, toLogin); return; }
     if (!t) sessionStorage.setItem('sfd_login_t', String(Date.now()));
     if (ready || window.__sfdStarted) return; window.__sfdStarted = true;
-    start(user);
-  });
+    start(user).catch(e => { console.error(e); fatal('Unexpected error: ' + ((e && e.message) || e)); });
+  }, e => { console.error(e); fatal('Login check failed: ' + ((e && e.message) || e)); });
 })();
