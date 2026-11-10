@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<title>Login · Service & Facility Dashboard</title>
+<link rel="stylesheet" href="login.css">
+<style>#sfdLoader{position:fixed;inset:0;z-index:100000;display:grid;place-items:center;background:radial-gradient(900px 480px at 85% -10%,rgba(96,165,250,.38),transparent 60%),radial-gradient(800px 420px at -5% 105%,rgba(31,79,168,.2),transparent 55%),#eef2fa;transition:opacity .5s ease,visibility .5s;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#sfdLoader.hide{opacity:0;visibility:hidden;pointer-events:none}
+#sfdLoader .sfd-ld{display:flex;flex-direction:column;align-items:center;gap:26px}
+#sfdLoader .sfd-ring{position:relative;width:170px;height:170px;display:grid;place-items:center}
+#sfdLoader .sfd-ring::before{content:"";position:absolute;inset:0;border-radius:50%;border:4px solid rgba(96,165,250,.25);border-top-color:#2f6fdf;border-right-color:#60a5fa;animation:sfdspin 1.1s linear infinite}
+#sfdLoader .sfd-ring::after{content:"";position:absolute;inset:-14px;border-radius:50%;border:2px dashed rgba(96,165,250,.45);animation:sfdspin 6s linear infinite reverse}
+#sfdLoader .sfd-lg{width:128px;height:128px;border-radius:50%;background:#fff;display:grid;place-items:center;box-shadow:0 14px 34px rgba(96,165,250,.5);animation:sfdpulse 1.8s ease-in-out infinite}
+#sfdLoader .sfd-lg img{width:92px;height:auto;display:block}
+#sfdLoader .sfd-t{font-weight:700;font-size:15px;color:#1f4fa8;letter-spacing:.05em}
+#sfdLoader .sfd-bar{width:180px;height:5px;border-radius:99px;background:rgba(96,165,250,.25);overflow:hidden}
+#sfdLoader .sfd-bar i{display:block;height:100%;width:40%;border-radius:99px;background:linear-gradient(90deg,#1f4fa8,#60a5fa);animation:sfdbar 1.3s ease-in-out infinite}
+@keyframes sfdspin{to{transform:rotate(360deg)}}
+@keyframes sfdpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07);box-shadow:0 18px 42px rgba(96,165,250,.75)}}
+@keyframes sfdbar{0%{transform:translateX(-110%)}100%{transform:translateX(280%)}}
+@media (prefers-color-scheme:dark){#sfdLoader{background:radial-gradient(900px 480px at 85% -10%,rgba(47,111,237,.35),transparent 60%),radial-gradient(800px 420px at -5% 105%,rgba(31,79,168,.32),transparent 55%),#070f1f}#sfdLoader .sfd-t{color:#9cc1ff}}
+@media (prefers-reduced-motion:reduce){#sfdLoader *,#sfdLoader *::before,#sfdLoader *::after{animation:none!important}}
+</style>
+</head><body>
+<div id="sfdLoader" role="status" aria-live="polite"><div class="sfd-ld"><div class="sfd-ring"><div class="sfd-lg"><img src="loading-logo.png" alt="Loading"></div></div><div class="sfd-t">Loading…</div><div class="sfd-bar"><i></i></div></div></div>
+<script>(function(){var s=Date.now(),l=document.getElementById("sfdLoader");function done(){var w=Math.max(0,900-(Date.now()-s));setTimeout(function(){l.classList.add("hide");setTimeout(function(){l.remove()},600)},w)}if(document.readyState==="complete")done();else window.addEventListener("load",done);setTimeout(done,10000)})();</script>
+
+<div class="lgx">
+<div class="lgw">
+<div class="lgh">
+  <div class="lgbrand"><img class="lglogo" src="logo.png" alt=""><span>Admin &amp; After Sales</span></div>
+  <h2>Service &amp; Facility Dashboard</h2>
+  <p>Mechanic performance, spare parts, after sales and branch operations, all in one place.</p>
+  <div class="lgchips"><span class="lgchip">🔧 Mechanic Performance</span><span class="lgchip">📦 Spare Parts</span><span class="lgchip">📑 After Sales Report</span><span class="lgchip">🏢 Branch Facility</span></div>
+  <svg class="lgspark" viewBox="0 0 400 120" aria-hidden="true"><defs><linearGradient id="lgarea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".4"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs><path class="lgsa" d="M0 100 C40 95 60 70 100 75 S160 40 200 50 S270 20 310 30 S370 8 392 12 L392 120 L0 120 Z"/><path class="lgsl" d="M0 100 C40 95 60 70 100 75 S160 40 200 50 S270 20 310 30 S370 8 392 12"/><circle cx="392" cy="12" r="5"/></svg>
+</div>
+<div class="lgpn">
+<form id="f" autocomplete="on">
+  <div class="lghi">Welcome back 👋</div><h1>Sign in</h1><p class="lgsub">Use your authorized email to continue</p>
+  <label for="u">Email</label>
+  <div class="lgig"><span>✉️</span><input id="u" type="email" autocomplete="username" autofocus required></div>
+  <label for="p">Password</label>
+  <div class="lgfield"><span>🔒</span><input id="p" type="password" autocomplete="current-password" required><button type="button" class="lgeye" id="eye" aria-label="Show password" title="Show password">👁️</button></div>
+  <button class="lgbtn" id="go" type="submit">Log in</button>
+  <div class="lgmsg" id="msg" role="alert"></div>
+  <button type="button" class="lglnk" id="forgot">Forgot password?</button>
+</form>
+<form id="r" autocomplete="off" hidden>
+  <div class="lghi">Need help? 🔑</div><h1>Reset password</h1><p class="lgsub">Enter your email and the recovery code</p>
+  <label for="re">Email</label><div class="lgig"><span>✉️</span><input id="re" type="email" required></div>
+  <label for="rc">Recovery code</label><div class="lgig"><span>🗝️</span><input id="rc" autocomplete="off" required></div><p class="lghint">Ask the system administrator for the recovery code.</p>
+  <label for="rp">New password</label><div class="lgig"><span>🔒</span><input id="rp" type="password" autocomplete="new-password" minlength="8" required></div>
+  <label for="rp2">Confirm new password</label><div class="lgig"><span>🔒</span><input id="rp2" type="password" autocomplete="new-password" minlength="8" required></div>
+  <button class="lgbtn" id="rgo" type="submit">Change password</button>
+  <div class="lgmsg" id="rmsg" role="alert"></div>
+  <button type="button" class="lglnk" id="back">← Back to login</button>
+</form>
+<div class="lgfoot">Authorized users only</div>
+</div></div>
+</div>
+<script src="auth.js"></script>
+<script>
+(function(){
+  var $=function(i){return document.getElementById(i)},LK='sfd_lock',f=$('f'),r=$('r'),m=$('msg'),rm=$('rmsg'),go=$('go'),rgo=$('rgo'),p=$('p'),act='l';
+  try{var s=JSON.parse(sessionStorage.getItem(SFD_SESSION_KEY));if(s&&Date.now()-s.t<SFD_SESSION_HOURS*3600000){location.replace('index.html');return}}catch(e){}
+  $('eye').onclick=function(){var h=p.type==='password';p.type=h?'text':'password';this.textContent=h?'🙈':'👁️'};
+  function st(){try{return JSON.parse(localStorage.getItem(LK))||{n:0,until:0}}catch(e){return{n:0,until:0}}}
+  function put(d){try{localStorage.setItem(LK,JSON.stringify(d))}catch(e){}}
+  var timer;function tick(){var d=st(),left=Math.ceil((d.until-Date.now())/1000),el=act==='l'?m:rm,bt=act==='l'?go:rgo;
+    if(left>0){go.disabled=rgo.disabled=true;el.className='lgmsg';el.textContent='Too many attempts. Try again in '+left+'s.';clearTimeout(timer);timer=setTimeout(tick,500)}
+    else if(go.disabled){go.disabled=rgo.disabled=false;el.textContent='';put({n:0,until:0})}}
+  function fail(){var d=st();d.n=(d.n||0)+1;if(d.n>=SFD_MAX_FAILS){d.until=Date.now()+SFD_LOCK_SECONDS*1000;d.n=0}put(d);return d.until>Date.now()}
+  function view(w){act=w;f.hidden=w!=='l';r.hidden=w!=='r';m.textContent=rm.textContent='';if(w==='r')$('re').value=$('u').value;tick()}
+  $('forgot').onclick=function(){view('r')};$('back').onclick=function(){view('l')};
+  tick();
+  f.addEventListener('submit',async function(e){e.preventDefault();if(st().until>Date.now())return;go.disabled=true;m.textContent='';m.className='lgmsg';
+    var acc=await sfdLogin($('u').value,p.value);
+    if(acc){put({n:0,until:0});location.replace('index.html');return}
+    p.value='';p.focus();if(fail())tick();else{go.disabled=false;m.textContent='Wrong email or password.'}});
+  r.addEventListener('submit',async function(e){e.preventDefault();if(st().until>Date.now())return;rm.className='lgmsg';rm.textContent='';
+    if($('rp').value!==$('rp2').value){rm.textContent='The two new passwords do not match.';return}
+    rgo.disabled=true;var err=await sfdReset($('re').value,$('rc').value,$('rp').value);
+    if(err){if(err==='Wrong recovery code.'&&fail()){tick();return}rgo.disabled=false;rm.textContent=err;return}
+    rgo.disabled=false;put({n:0,until:0});$('u').value=$('re').value;['rc','rp','rp2'].forEach(function(i){$(i).value=''});
+    view('l');m.className='lgmsg lgok';m.textContent='Password changed. You can log in now.'});
+})();
+</script>
+</body></html>
