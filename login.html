@@ -46,27 +46,27 @@
   <button type="button" class="lglnk" id="forgot">Forgot password?</button>
 </form>
 <form id="r" autocomplete="off" hidden>
-  <div class="lghi">Need help? 🔑</div><h1>Reset password</h1><p class="lgsub">Enter your email and the recovery code</p>
+  <div class="lghi">Need help? 🔑</div><h1>Reset password</h1><p class="lgsub">Type your email and we will send you a link to choose a new password</p>
   <label for="re">Email</label><div class="lgig"><span>✉️</span><input id="re" type="email" required></div>
-  <label for="rc">Recovery code</label><div class="lgig"><span>🗝️</span><input id="rc" autocomplete="off" required></div><p class="lghint">Ask the system administrator for the recovery code.</p>
-  <label for="rp">New password</label><div class="lgig"><span>🔒</span><input id="rp" type="password" autocomplete="new-password" minlength="8" required></div>
-  <label for="rp2">Confirm new password</label><div class="lgig"><span>🔒</span><input id="rp2" type="password" autocomplete="new-password" minlength="8" required></div>
-  <button class="lgbtn" id="rgo" type="submit">Change password</button>
+  <button class="lgbtn" id="rgo" type="submit">Send reset link</button>
   <div class="lgmsg" id="rmsg" role="alert"></div>
   <button type="button" class="lglnk" id="back">← Back to login</button>
 </form>
 <div class="lgfoot">Authorized users only</div>
 </div></div>
 </div>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="auth.js"></script>
 <script>
 (function(){
   var $=function(i){return document.getElementById(i)},LK='sfd_lock',f=$('f'),r=$('r'),m=$('msg'),rm=$('rmsg'),go=$('go'),rgo=$('rgo'),p=$('p'),act='l';
-  try{var s=JSON.parse(sessionStorage.getItem(SFD_SESSION_KEY));if(s&&Date.now()-s.t<SFD_SESSION_HOURS*3600000){location.replace('index.html');return}}catch(e){}
+  if(sfdAuth){sfdAuth.onAuthStateChanged(function(u){var t=+sessionStorage.getItem('sfd_login_t')||0;if(u&&t&&Date.now()-t<SFD_SESSION_HOURS*3600000)location.replace('index.html')})}
+  else{m.textContent='Could not connect to Firebase. Check your internet and reload.'}
   $('eye').onclick=function(){var h=p.type==='password';p.type=h?'text':'password';this.textContent=h?'🙈':'👁️'};
   function st(){try{return JSON.parse(localStorage.getItem(LK))||{n:0,until:0}}catch(e){return{n:0,until:0}}}
   function put(d){try{localStorage.setItem(LK,JSON.stringify(d))}catch(e){}}
-  var timer;function tick(){var d=st(),left=Math.ceil((d.until-Date.now())/1000),el=act==='l'?m:rm,bt=act==='l'?go:rgo;
+  var timer;function tick(){var d=st(),left=Math.ceil((d.until-Date.now())/1000),el=act==='l'?m:rm;
     if(left>0){go.disabled=rgo.disabled=true;el.className='lgmsg';el.textContent='Too many attempts. Try again in '+left+'s.';clearTimeout(timer);timer=setTimeout(tick,500)}
     else if(go.disabled){go.disabled=rgo.disabled=false;el.textContent='';put({n:0,until:0})}}
   function fail(){var d=st();d.n=(d.n||0)+1;if(d.n>=SFD_MAX_FAILS){d.until=Date.now()+SFD_LOCK_SECONDS*1000;d.n=0}put(d);return d.until>Date.now()}
@@ -74,15 +74,13 @@
   $('forgot').onclick=function(){view('r')};$('back').onclick=function(){view('l')};
   tick();
   f.addEventListener('submit',async function(e){e.preventDefault();if(st().until>Date.now())return;go.disabled=true;m.textContent='';m.className='lgmsg';
-    var acc=await sfdLogin($('u').value,p.value);
-    if(acc){put({n:0,until:0});location.replace('index.html');return}
-    p.value='';p.focus();if(fail())tick();else{go.disabled=false;m.textContent='Wrong email or password.'}});
-  r.addEventListener('submit',async function(e){e.preventDefault();if(st().until>Date.now())return;rm.className='lgmsg';rm.textContent='';
-    if($('rp').value!==$('rp2').value){rm.textContent='The two new passwords do not match.';return}
-    rgo.disabled=true;var err=await sfdReset($('re').value,$('rc').value,$('rp').value);
-    if(err){if(err==='Wrong recovery code.'&&fail()){tick();return}rgo.disabled=false;rm.textContent=err;return}
-    rgo.disabled=false;put({n:0,until:0});$('u').value=$('re').value;['rc','rp','rp2'].forEach(function(i){$(i).value=''});
-    view('l');m.className='lgmsg lgok';m.textContent='Password changed. You can log in now.'});
+    var res=await sfdLogin($('u').value,p.value);
+    if(res.ok){put({n:0,until:0});location.replace('index.html');return}
+    p.value='';p.focus();if(res.bad&&fail()){tick();return}go.disabled=false;m.textContent=res.msg});
+  r.addEventListener('submit',async function(e){e.preventDefault();rm.className='lgmsg';rm.textContent='';rgo.disabled=true;
+    var err=await sfdReset($('re').value);rgo.disabled=false;
+    if(err){rm.textContent=err;return}
+    $('u').value=$('re').value;view('l');m.className='lgmsg lgok';m.textContent='If this email is authorized, a reset link was sent. Check your inbox (and spam).'});
 })();
 </script>
 </body></html>

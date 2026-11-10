@@ -3,30 +3,36 @@
 A static website. No server, build step or install is needed.
 
 ## How to open
-Open `login.html` (or `index.html`, which sends you to the login page). Only three authorized emails can log in (see `auth.js`). Passwords are stored only as salted hashes.
+Open `login.html` (or `index.html`, which sends you to the login page). Only the users added in Firebase Authentication can log in.
 The page opens in a browser in a browser (Chrome, Edge, Firefox or Safari).
 An internet connection is needed the first time for the Inter font and the Excel/PDF export libraries (loaded from a CDN).
 
 ## Files
 - `login.html` – login page
-- `auth.js` – the list of users (passwords are stored as hashes)
-- `guard.js` – sends people who are not signed in back to the login page
+- `auth.js` – Firebase settings and login functions
+- `guard.js` – checks the login, loads/saves the shared data, then starts `app.js`
 - `index.html` – page structure (sidebar, pages, tables)
 - `styles.css` – all styling, themes and hover/animation effects
 - `app.js` – all logic: dashboards, formulas, forms, saving and export
 
-## Where the data is saved
-Everything you type is saved in the browser (localStorage) on the computer that opened the site.
-It is not shared between people or computers. Clearing the browser data erases it.
-
-## To put it online
-Upload all files (all in one folder, next to index.html) to any static host, such as GitHub Pages, Netlify or a company web server.
-
-## Logins
-Three emails have access: motoassap@gmail.com, aas.dept01@gmail.com and itcomtechmotorlandia@gmail.com.
-
-**Forgot password:** click "Forgot password?" on the login page, enter your email, the recovery code (kept by the administrator), and a new password.
-The new password is saved in that browser only, so on another computer or after clearing browser data the original password applies again.
-
-**Important:** this login runs only in the browser. It keeps casual visitors out, but anyone who knows web development can get around it,
-and it cannot send reset emails. For real security and email password resets, use a server login such as Firebase Authentication.
+## Firebase (login + shared data)
+- Project: `aasdepartmentmonitoring`. Login = Firebase Authentication (Email/Password). Data = Firestore collection `appdata`.
+- Add or remove users in Firebase console > Authentication > Users. The rules below also list the allowed emails.
+- "Forgot password?" sends a real reset email through Firebase.
+- All users share the same data. Changes save automatically (the name at the top shows "saving..." then "saved"). If someone else changes the data, a "Refresh now" box appears.
+- First login ever: the data already in that browser is uploaded to Firestore. After that, Firestore is the master copy and the browser copy is replaced on every login. Logging out clears the data from the browser.
+- Do not let two people edit at the exact same moment: the last save wins for that section.
+- Firestore rules (Firestore > Rules):
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth != null
+        && request.auth.token.email in [
+          'motoassap@gmail.com','aas.dept01@gmail.com','itcomtechmotorlandia@gmail.com'];
+    }
+  }
+}
+```
+- Firebase > Authentication > Settings > Authorized domains must include `itcomtechmotorlandia-bit.github.io`.

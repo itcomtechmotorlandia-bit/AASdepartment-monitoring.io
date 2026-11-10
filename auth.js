@@ -1,18 +1,55 @@
-/* Login accounts and helpers (passwords are stored only as salted PBKDF2 hashes).
-   NOTE: this is a front-end only login. It is NOT secure against someone who knows web development. */
-const SFD_SESSION_KEY='sfd_session',SFD_SESSION_HOURS=8,SFD_MAX_FAILS=5,SFD_LOCK_SECONDS=60,SFD_ITER=150000;
-const USERS=[
-  {u:'motoassap@gmail.com',name:'Moto ASSAP',s:'005898a6d627bbbee90744ab7bd02831',h:'f4bc53bcba854c69b55e03fd9327309cbbe8ad0edb9fb2a8d4094e31cfda463a'},
-  {u:'aas.dept01@gmail.com',name:'AAS Department',s:'8d4857d54a19aaa5c01e343ef489e536',h:'8daf4138d6ba059d8ab267f74ce4260131bddff1d6c74b98f453f5cdd49da5f0'},
-  {u:'itcomtechmotorlandia@gmail.com',name:'IT Comtech',s:'8fac45258671ea1dd64e984f233383d7',h:'135fad0512a9388865a68fb15b5d0d6c0562367f6ccd2cd5295cc405040e47b4'}
-];
-const RECOVERY={s:'6277dc24266e12e6b23edf622c637ffc',h:'86ca0efd0e3bea70b3e41c5e3cb8bc8793a232b05004cdd5abfdb726dd54c8b8'};
-const hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''),unhex=h=>new Uint8Array(h.match(/../g).map(x=>parseInt(x,16)));
-async function sfdPb(pw,salt){const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveBits']);return hex(await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt:unhex(salt),iterations:SFD_ITER},k,256))}
-function sfdOverrides(){try{return JSON.parse(localStorage.getItem('sfd_pw_override'))||{}}catch(e){return{}}}
-async function sfdLogin(email,pw){email=email.trim().toLowerCase();const acc=USERS.find(a=>a.u===email);if(!acc)return null;const rec=sfdOverrides()[email]||acc;if(await sfdPb(pw,rec.s)!==rec.h)return null;
-  sessionStorage.setItem(SFD_SESSION_KEY,JSON.stringify({u:acc.u,name:acc.name,t:Date.now()}));return acc}
-async function sfdReset(email,code,newPw){email=email.trim().toLowerCase();if(!USERS.find(a=>a.u===email))return'This email is not authorized.';
-  if(await sfdPb(code.trim().toUpperCase(),RECOVERY.s)!==RECOVERY.h)return'Wrong recovery code.';
-  if(newPw.length<8)return'The new password must have at least 8 characters.';
-  const s=hex(crypto.getRandomValues(new Uint8Array(16))),o=sfdOverrides();o[email]={s,h:await sfdPb(newPw,s)};try{localStorage.setItem('sfd_pw_override',JSON.stringify(o))}catch(e){return'Could not save the new password in this browser.'}return''}
+/* Firebase setup + login helpers (used by login.html and index.html).
+   The firebaseConfig below is NOT a secret. Your data is protected by the Firestore rules
+   and by the users you added in Firebase Authentication. */
+const firebaseConfig = {
+  apiKey: "AIzaSyBL2yVpMgaFn0ex2RvpLiNEsjDBKphYV5E",
+  authDomain: "aasdepartmentmonitoring.firebaseapp.com",
+  projectId: "aasdepartmentmonitoring",
+  storageBucket: "aasdepartmentmonitoring.firebasestorage.app",
+  messagingSenderId: "672532075383",
+  appId: "1:672532075383:web:16df130cedaaddef0f0772",
+  measurementId: "G-EMDLKJ501F"
+};
+const SFD_MAX_FAILS = 5, SFD_LOCK_SECONDS = 60, SFD_SESSION_HOURS = 8;
+const SFD_NAMES = {
+  'motoassap@gmail.com': 'Moto ASSAP',
+  'aas.dept01@gmail.com': 'AAS Department',
+  'itcomtechmotorlandia@gmail.com': 'IT Comtech'
+};
+let sfdAuth = null;
+try {
+  if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+  sfdAuth = firebase.auth();
+} catch (e) { console.error('Firebase failed to start', e); }
+
+/* Sign in. Returns {ok:true} or {ok:false, msg:'...'} */
+async function sfdLogin(email, pw) {
+  if (!sfdAuth) return { ok: false, msg: 'Could not connect to Firebase. Check your internet and reload.' };
+  try {
+    /* SESSION = signed out when the browser tab/window is closed (same as before) */
+    await sfdAuth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+    await sfdAuth.signInWithEmailAndPassword(email.trim(), pw);
+    sessionStorage.setItem('sfd_login_t', String(Date.now()));
+    return { ok: true };
+  } catch (e) {
+    const c = e && e.code || '';
+    if (c === 'auth/network-request-failed') return { ok: false, msg: 'No internet connection.' };
+    if (c === 'auth/too-many-requests') return { ok: false, msg: 'Too many attempts. Please wait a few minutes or reset your password.' };
+    if (c === 'auth/user-disabled') return { ok: false, msg: 'This account is disabled.' };
+    if (c === 'auth/unauthorized-domain') return { ok: false, msg: 'This website address is not authorized in Firebase (Authentication > Settings > Authorized domains).' };
+    return { ok: false, msg: 'Wrong email or password.', bad: true };
+  }
+}
+
+/* Send a password reset link to the email. Returns '' on success or an error message. */
+async function sfdReset(email) {
+  if (!sfdAuth) return 'Could not connect to Firebase. Check your internet and reload.';
+  try { await sfdAuth.sendPasswordResetEmail(email.trim()); return ''; }
+  catch (e) {
+    const c = e && e.code || '';
+    if (c === 'auth/invalid-email') return 'Please type a valid email.';
+    if (c === 'auth/network-request-failed') return 'No internet connection.';
+    if (c === 'auth/too-many-requests') return 'Too many requests. Please try again later.';
+    return 'Could not send the reset email. Try again.';
+  }
+}
