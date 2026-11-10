@@ -133,7 +133,7 @@
         catch (e) { if (!confirm('Your latest changes could not be saved (no connection?). Log out anyway and lose them?')) { b.disabled = false; return; } }
         KEYS.forEach(k => localStorage.removeItem(k));   /* do not leave company data on this computer */
         try { await sfdAuth.signOut(); } catch (e) {}
-        sessionStorage.removeItem('sfd_login_t'); toLogin();
+        localStorage.removeItem('sfd_login_t'); toLogin();
       });
       const s = document.createElement('script'); s.src = 'app.js';
       s.onload = () => { show(); listen(); };
@@ -145,11 +145,11 @@
   if (typeof firebase === 'undefined' || !sfdAuth) {
     onDom(() => fatal('Firebase could not be loaded. Check your internet connection and try again.')); return;
   }
-  const t = +sessionStorage.getItem('sfd_login_t') || 0;
+  const t = +localStorage.getItem('sfd_login_t') || 0;
   sfdAuth.onAuthStateChanged(user => {
     if (!user) return toLogin('nouser');
     if (t && Date.now() - t > MAX_AGE) { sfdAuth.signOut().then(() => toLogin('expired'), () => toLogin('expired')); return; }
-    if (!t) sessionStorage.setItem('sfd_login_t', String(Date.now()));
+    if (!t) localStorage.setItem('sfd_login_t', String(Date.now()));
     if (ready || window.__sfdStarted) return; window.__sfdStarted = true;
     start(user).catch(e => { console.error(e); fatal('Unexpected error: ' + ((e && e.message) || e)); });
   }, e => { console.error(e); fatal('Login check failed: ' + ((e && e.message) || e)); });

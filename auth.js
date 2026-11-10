@@ -26,10 +26,9 @@ try {
 async function sfdLogin(email, pw) {
   if (!sfdAuth) return { ok: false, msg: 'Could not connect to Firebase. Check your internet and reload.' };
   try {
-    /* SESSION = signed out when the browser tab/window is closed (same as before) */
-    await sfdAuth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+    /* login is kept for SFD_SESSION_HOURS, then the site asks for the password again */
     await sfdAuth.signInWithEmailAndPassword(email.trim(), pw);
-    sessionStorage.setItem('sfd_login_t', String(Date.now()));
+    localStorage.setItem('sfd_login_t', String(Date.now()));
     return { ok: true };
   } catch (e) {
     const c = e && e.code || '';

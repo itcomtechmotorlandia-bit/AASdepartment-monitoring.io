@@ -61,7 +61,7 @@
 <script>
 (function(){
   var $=function(i){return document.getElementById(i)},LK='sfd_lock',f=$('f'),r=$('r'),m=$('msg'),rm=$('rmsg'),go=$('go'),rgo=$('rgo'),p=$('p'),act='l';
-  if(sfdAuth){sfdAuth.onAuthStateChanged(function(u){var t=+sessionStorage.getItem('sfd_login_t')||0;if(u&&t&&Date.now()-t<SFD_SESSION_HOURS*3600000)location.replace('index.html')})}
+  if(sfdAuth){sfdAuth.onAuthStateChanged(function(u){var t=+localStorage.getItem('sfd_login_t')||0;if(u&&t&&Date.now()-t<SFD_SESSION_HOURS*3600000)location.replace('index.html')})}
   else{m.textContent='Could not connect to Firebase. Check your internet and reload.'}
   $('eye').onclick=function(){var h=p.type==='password';p.type=h?'text':'password';this.textContent=h?'🙈':'👁️'};
   function st(){try{return JSON.parse(localStorage.getItem(LK))||{n:0,until:0}}catch(e){return{n:0,until:0}}}
