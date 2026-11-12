@@ -169,3 +169,4 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(96,165,250,.17),transparent
 .ctlg{padding:6px 12px;border-radius:999px;font-size:12px;font-weight:600}
 .ch-draw{animation:draw 1.3s ease-out forwards}@keyframes draw{to{stroke-dashoffset:0}}.ch-area{opacity:0;animation:fadeIn 1s .7s forwards}@keyframes fadeIn{to{opacity:1}}
 @media (prefers-reduced-motion:reduce){*,*::before{animation:none!important;transition:none!important}.ch-area{opacity:1}}
+#spch svg{max-width:100%;overflow:hidden}#spch svg circle{transition:r .2s,filter .2s;cursor:pointer}#spch svg circle:hover{r:8;filter:drop-shadow(0 0 7px var(--hv,#60a5fa))}#spch svg path[stroke-width="3.5"]{filter:drop-shadow(0 4px 8px var(--glow,rgba(96,165,250,.38)))}
