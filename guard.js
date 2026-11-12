@@ -7,7 +7,7 @@
   const MAX_AGE = SFD_SESSION_HOURS * 3600 * 1000, CH = 250000, SAVE_DELAY = 800;
   const KEYS = ['bd2', 'afterSalesReport', 'sparePartsWeekly', 'sparePartsTargets', 'sparePartsTargetsMonthly',
     'sparePartsClassifications', 'uniformMonitoring', 'memoPreview', 'travelExpense',
-    'contractPreview', 'contractPreviewByBranch', 'facilityConcerns', 'facilityConcernsByMonth'];
+    'contractPreview', 'contractPreviewByBranch', 'contractPhotos', 'facilityConcerns', 'facilityConcernsByMonth'];
   const SID = Math.random().toString(36).slice(2) + Date.now().toString(36);
   const origSet = Storage.prototype.setItem;
   let db, col, me, ready = false, firstSnap = true;

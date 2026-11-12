@@ -213,31 +213,36 @@ function drawCh(){
  $('#chT').textContent=(isM?'Weekly Income · '+MN[PER.m-1]+' '+PER.y:'Monthly Income · '+PER.y)+' · '+label+' (₱)';
  if(!L.length){$('#ch').innerHTML='<p class="sub">No branches match the current filters.</p>';return}
  const tgtOf=(y,m)=>L.reduce((sum,x)=>{const q=x.mo&&x.mo[key(y,m)];return sum+(q&&q.t!=null?+q.t:+(x.dt??x.t??0))},0),sum=a=>a.reduce((n,v)=>n+v,0);
- let labels,full,current,previous,scaleExtra,curName,prevName,cards;
+ let labels,full,current,previous,scaleExtra,curName,prevName,cards,tline=[],cum=null;
  if(isM){
   const ws=y=>[0,1,2,3,4].map(i=>L.reduce((t,x)=>t+(+wk(x,y,PER.m)[i]||0),0));
-  labels=[1,2,3,4,5].map(i=>'Week '+i);full=labels;current=ws(PER.y);previous=ws(prevYear);scaleExtra=[];
+  labels=[1,2,3,4,5].map(i=>'Week '+i);full=labels;current=ws(PER.y);previous=ws(prevYear);cum=current.map((v,i)=>current.slice(0,i+1).reduce((a,b)=>a+b,0));tline=labels.map(()=>tgtOf(PER.y,PER.m));scaleExtra=tline.concat(cum);
   curName=MN[PER.m-1]+' '+PER.y;prevName=MN[PER.m-1]+' '+prevYear;
   const cs=sum(current),ps=sum(previous),t=tgtOf(PER.y,PER.m),pf=t?cs/t*100:0;
   cards=[['Total Income · '+curName,peso(cs)],['Total Income · '+prevName,peso(ps)],['Monthly Target',peso(t)],['Performance',cs?pf.toFixed(1)+'%':'—']];
  }else{
   const months=Array.from({length:12},(_,i)=>i+1),tot=y=>months.map(m=>L.reduce((t,x)=>t+sum(wk(x,y,m).map(n=>+n||0)),0));
-  labels=MN.map(m=>m.slice(0,3));full=MN;current=tot(PER.y);previous=tot(prevYear);scaleExtra=months.map(m=>tgtOf(PER.y,m)).concat(months.map(m=>tgtOf(prevYear,m)));
+  labels=MN.map(m=>m.slice(0,3));full=MN;current=tot(PER.y);previous=tot(prevYear);scaleExtra=months.map(m=>tgtOf(PER.y,m)).concat(months.map(m=>tgtOf(prevYear,m)));tline=months.map(m=>tgtOf(PER.y,m));
   curName=String(PER.y);prevName=String(prevYear);
   const bi=current.indexOf(Math.max(...current));
-  cards=[['Total Income of Year '+PER.y,peso(sum(current))],['Total Income of Year '+prevYear,peso(sum(previous))],['Top month in '+PER.y,current[bi]>0?MN[bi]:'—']];
+  cards=[['Total Income of Year '+PER.y,peso(sum(current))],['Total Income of Year '+prevYear,peso(sum(previous))],['Top month in '+PER.y,current[bi]>0?MN[bi]:'—'],['Months that reached the target',current.filter((v,i)=>tline[i]>0&&v>=tline[i]).length+' of '+tline.filter(v=>v>0).length]];
  }
  if(!current.concat(previous).some(v=>v>0)){$('#ch').innerHTML='<p class="sub">No income recorded for '+esc(label)+' in '+(isM?curName+' or '+prevName:'these years')+'.</p>';return}
  const n=labels.length,short=v=>v>=1000000?'₱'+(v/1000000).toFixed(1)+'m':v>=1000?'₱'+(v/1000).toFixed(0)+'k':peso(v),
- W=720,H=360,left=64,right=40,top=28,bottom=48,pw=W-left-right,ph=H-top-bottom,mx=Math.max(1,...scaleExtra,...current,...previous),px=i=>left+i*pw/(n-1),py=v=>top+ph-v/mx*ph,base=top+ph;
+ W=720,H=360,left=64,right=84,top=28,bottom=48,pw=W-left-right,ph=H-top-bottom,mx=Math.max(1,...scaleExtra,...current,...previous),px=i=>left+i*pw/(n-1),py=v=>top+ph-v/mx*ph,base=top+ph;
  let s=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:100%;height:auto;display:block" role="img" aria-label="Income comparison for ${esc(label)}: ${curName} and ${prevName}">`;
  for(let i=0;i<=4;i++){const v=mx*(4-i)/4,y=top+i*ph/4;s+=`<line x1="${left}" y1="${y}" x2="${W-right}" y2="${y}" stroke="var(--bd)" stroke-dasharray="4 6"/><text x="${left-12}" y="${y+4}" text-anchor="end" font-size="11" fill="var(--mu)">${short(v)}</text>`}
  const pathFor=a=>a.map((v,i)=>`${i?'L':'M'} ${px(i)} ${py(v)}`).join(' ');
+ if(tline.some(v=>v>0)){s+=`<path d="${pathFor(tline)}" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-dasharray="2 6" stroke-linecap="round"/>`;
+  tline.forEach((v,i)=>{s+=`<g><title>${full[i]} Target: ${peso(v)} · ${esc(label)}</title><circle cx="${px(i)}" cy="${py(v)}" r="3.5" fill="#16a34a"/></g>`});
+  const same=tline.every(v=>v===tline[0]),lt=tline[tline.length-1];
+  s+=`<text x="${W-right+8}" y="${py(lt)-3}" font-size="10" font-weight="700" fill="#16a34a">Target</text><text x="${W-right+8}" y="${py(lt)+10}" font-size="10" font-weight="700" fill="#16a34a">${same?short(tline[0]):'varies'}</text>`}
+ if(cum)s+=`<path d="${pathFor(cum)}" fill="none" stroke="var(--ac)" stroke-width="2" stroke-opacity=".55" stroke-dasharray="1 5" stroke-linecap="round"/>`+cum.map((v,i)=>{const ok=tline[i]>0&&v>=tline[i];return`<g><title>${full[i]} cumulative: ${peso(v)}${tline[i]?' · '+(v/tline[i]*100).toFixed(1)+'% of target':''}</title><circle cx="${px(i)}" cy="${py(v)}" r="4" fill="${ok?'#16a34a':'var(--card)'}" stroke="${ok?'#16a34a':'var(--ac)'}" stroke-width="2"/></g>`}).join('');
  s+=`<path d="${pathFor(previous)}" fill="none" stroke="var(--ac2)" stroke-width="2.5" stroke-dasharray="8 6" stroke-linecap="round" stroke-linejoin="round"/><path d="${pathFor(current)}" fill="none" stroke="var(--ac)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>`;
  previous.forEach((v,i)=>{s+=`<g><title>${full[i]} ${prevName}: ${peso(v)} · ${esc(label)}</title><circle cx="${px(i)}" cy="${py(v)}" r="4.5" fill="var(--card)" stroke="var(--ac2)" stroke-width="2.5"/></g>`});
- current.forEach((v,i)=>{const x=px(i),y=py(v),ly=Math.max(top+13,y-12);s+=`<g><title>${full[i]} ${curName}: ${peso(v)} · ${esc(label)}</title><circle cx="${x}" cy="${y}" r="5" fill="var(--ac)" stroke="var(--card)" stroke-width="2"/><text x="${Math.min(W-24,Math.max(left,x))}" y="${ly}" text-anchor="middle" font-size="10" font-weight="700" fill="var(--tx)">${short(v)}</text></g>`});
+ current.forEach((v,i)=>{const x=px(i),y=py(v),ly=Math.max(top+13,y-12);s+=`<g><title>${full[i]} ${curName}: ${peso(v)} · ${esc(label)}${!isM&&tline[i]>0?(v>=tline[i]?' · target reached ✓':' · below target ('+(v/tline[i]*100).toFixed(1)+'%)'):''}</title><circle cx="${x}" cy="${y}" r="5" fill="${!isM&&tline[i]>0&&v>=tline[i]?'#16a34a':'var(--ac)'}" stroke="var(--card)" stroke-width="2"/><text x="${Math.min(W-24,Math.max(left,x))}" y="${ly}" text-anchor="middle" font-size="10" font-weight="700" fill="var(--tx)">${short(v)}</text></g>`});
  labels.forEach((m,i)=>{const x=px(i);s+=`<line x1="${x}" y1="${base}" x2="${x}" y2="${base+5}" stroke="var(--bd)"/><text x="${x}" y="${base+22}" text-anchor="middle" font-size="11" fill="var(--mu)">${m}</text>`});s+='</svg>';
- $('#ch').innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:2px 0 12px">'+cards.map(c=>'<div class="card" style="padding:10px 12px"><div class="sub">'+c[0]+'</div><b>'+c[1]+'</b></div>').join('')+'</div><div style="width:100%;overflow:hidden">'+s+'</div><div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:10px"><span><i style="display:inline-block;width:18px;border-top:3px solid var(--ac);vertical-align:middle;margin-right:6px"></i>'+curName+'</span><span><i style="display:inline-block;width:18px;border-top:3px dashed var(--ac2);vertical-align:middle;margin-right:6px"></i>'+prevName+'</span></div><div class="sub" style="margin-top:8px">Showing '+esc(label)+'. Use the Year, Month, Branch, Area and Grade filters in Branch Performance to change this graph. Pick a month to see its weekly income; choose Whole year to see all 12 months. Hover a point for its exact amount.</div>';
+ $('#ch').innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:2px 0 12px">'+cards.map(c=>'<div class="card" style="padding:10px 12px"><div class="sub">'+c[0]+'</div><b>'+c[1]+'</b></div>').join('')+'</div><div style="width:100%;overflow:hidden">'+s+'</div><div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:10px"><span><i style="display:inline-block;width:18px;border-top:3px solid var(--ac);vertical-align:middle;margin-right:6px"></i>'+curName+'</span><span><i style="display:inline-block;width:18px;border-top:3px dashed var(--ac2);vertical-align:middle;margin-right:6px"></i>'+prevName+'</span>'+(tline.some(v=>v>0)?'<span><i style="display:inline-block;width:18px;border-top:3px dotted #16a34a;vertical-align:middle;margin-right:6px"></i>Monthly Target'+(isM?'':' (green dot = target reached)')+'</span>':'')+(cum?'<span><i style="display:inline-block;width:18px;border-top:3px dotted var(--ac);vertical-align:middle;margin-right:6px"></i>Running total of the weeks (green = target reached)</span>':'')+'</div><div class="sub" style="margin-top:8px">Showing '+esc(label)+'. Use the Year, Month, Branch, Area and Grade filters in Branch Performance to change this graph. Pick a month to see its weekly income; choose Whole year to see all 12 months. Hover a point for its exact amount.</div>';
 }
 // table
 function fB(){const q=$('#q1').value.toLowerCase(),c=$('#c1').value,a=$('#a1').value,b=$('#b1').value;return B.filter(x=>(!b||x.b==b)&&x.b.toLowerCase().includes(q)&&(!c||x.c==c)&&(!a||x.ar==a))}
@@ -297,7 +302,7 @@ const ASP=['3S SAN PABLO','3S STA ROSA','3S CALAMBA','3S LUCENA','MS GUMACA','MS
 const ASS=[['parts','3S Parts Sales'],['svc','Service Revenue'],['oil','Multi-Brand Oil Sales']];
 let AS={parts:{},svc:{},oil:{}};try{const p=JSON.parse(localStorage.getItem('afterSalesReport'));if(p&&typeof p=='object'&&!Array.isArray(p))AS=Object.assign(AS,p)}catch(e){}
 const asSave=()=>{try{localStorage.setItem('afterSalesReport',JSON.stringify(AS))}catch(e){}};
-const asGet=(k,b,y=PER.y,mo=PER.m)=>{const g=m=>{const ky=y+'-'+String(m).padStart(2,'0'),o=AS[k]&&AS[k][ky]&&AS[k][ky][b];let t=+(o&&o.t)||0;if(k=='parts'){t=spM(b,y,m)}else if(k=='svc'&&!(t>0)){const x=B.find(z=>z.b==b),q=x&&x.mo&&x.mo[ky];t=x?(q&&q.t!=null?+q.t:+(x.dt??x.t??0))||0:0}const sf=+(o&&(o.sf!=null?o.sf:o.a))||0,fcs=+(o&&o.fcs)||0,nc=+(o&&o.nc)||0;return{t,a:k=='svc'?sf+fcs:+(o&&o.a)||0,sf,fcs,nc,pm:+(o&&o.pm)||0,py:+(o&&o.py)||0}};if(mo)return g(mo);let t=0,a=0,sf=0,fcs=0,nc=0,pm=0,py=0;for(let m=1;m<=12;m++){const o=g(m);t+=o.t;a+=o.a;sf+=o.sf;fcs+=o.fcs;nc+=o.nc;pm+=o.pm;py+=o.py}return{t,a,sf,fcs,nc,pm,py}};
+const asGet=(k,b,y=PER.y,mo=PER.m)=>{const g=m=>{const ky=y+'-'+String(m).padStart(2,'0'),o=AS[k]&&AS[k][ky]&&AS[k][ky][b];let t=+(o&&o.t)||0;if(k=='parts'){t=spM(b,y,m)}else if(k=='svc'&&!(t>0)){const x=B.find(z=>z.b==b),q=x&&x.mo&&x.mo[ky];t=x?(q&&q.t!=null?+q.t:+(x.dt??x.t??0))||0:0}const sf=+(o&&(o.sf!=null?o.sf:o.a))||0,nc=+(o&&o.nc)||0,fcs=k=='svc'?nc*30:+(o&&o.fcs)||0;return{t,a:k=='svc'?sf+fcs:+(o&&o.a)||0,sf,fcs,nc,pm:+(o&&o.pm)||0,py:+(o&&o.py)||0}};if(mo)return g(mo);let t=0,a=0,sf=0,fcs=0,nc=0,pm=0,py=0;for(let m=1;m<=12;m++){const o=g(m);t+=o.t;a+=o.a;sf+=o.sf;fcs+=o.fcs;nc+=o.nc;pm+=o.pm;py+=o.py}return{t,a,sf,fcs,nc,pm,py}};
 const asUG=(y=PER.y,mo=PER.m)=>{const g=m=>{const ky=y+'-'+String(m).padStart(2,'0'),o=AS.units&&AS.units[ky],t=B.reduce((s,x)=>s+((x.sr&&x.sr[ky])||[]).reduce((q,n)=>q+(+n||0),0),0);return{t,a:t}};if(mo)return g(mo);let t=0,a=0;for(let m=1;m<=12;m++){const o=g(m);t+=o.t;a+=o.a}return{t,a}};
 const nf=n=>Math.round(n).toLocaleString('en-PH');
 function asUCalc(){const o=asUG(),pv=asUG(PER.y-1,PER.m).a,v=o.t?(o.a/o.t-1)*100:0,yo=pv?(pv-o.a)/pv*100:null;
@@ -328,9 +333,9 @@ const asPV=x=>{const pm=PER.m?(PER.m>1?PER.m-1:12):0,pY=PER.m>1?PER.y:PER.y-1,t=
 const asPf=(t,c)=>t?pc(c/t*100,1):'<span class="sub">—</span>',asF=v=>v?peso(v):'—',asGr=(p,c)=>{if(!p)return'—';const g=(p-c)/p*100;return`<span class="tag ${g>=0?'ok':'er'}">${g>=0?'▲ +':'▼ −'}${Math.abs(g).toFixed(1)}%</span>`};
 const asPartsRows=list=>list.map(x=>{const o=asPV(x);return`<tr><td><b>${esc(x.b)}</b></td><td class="num">${asF(o.t)}</td><td class="num">${asF(o.py)}</td><td class="num">${asF(o.cy)}</td><td class="num">${asF(o.pm)}</td><td>${asGr(o.pm,o.cy)}</td><td>${asGr(o.py,o.cy)}</td><td>${asPf(o.t,o.cy)}</td></tr>`}).join('')||'<tr><td colspan="8" class="sub">No branches match the search.</td></tr>';
 const asPartsFoot=list=>{const s=list.map(asPV).reduce((r,o)=>({t:r.t+o.t,py:r.py+o.py,cy:r.cy+o.cy,pm:r.pm+o.pm}),{t:0,py:0,cy:0,pm:0});return`<tr><td>TOTAL</td><td class="num">${asF(s.t)}</td><td class="num">${asF(s.py)}</td><td class="num">${asF(s.cy)}</td><td class="num">${asF(s.pm)}</td><td>${asGr(s.pm,s.cy)}</td><td>${asGr(s.py,s.cy)}</td><td>${asPf(s.t,s.cy)}</td></tr>`};
-const asSvcRows=list=>{const ro=PER.m?'':'readonly title="Select a month to enter data"';return list.map(x=>{const i=asList('svc').indexOf(x),o=asGet('svc',x.b),inp=(f,v,pf)=>`<td><input class="wv as" data-f="${f}" data-i="${i}" data-k="svc" type="text" inputmode="decimal" value="${v?pf(v):''}" ${ro} placeholder="${f=='nc'?'0':'₱0'}"></td>`;return`<tr data-i="${i}"><td><b>${esc(x.b)}</b></td>${inp('t',o.t,peso)}${inp('sf',o.sf,peso)}${inp('fcs',o.fcs,peso)}${inp('nc',o.nc,nf)}<td class="num st">${asF(o.a)}</td><td class="sp">${asPf(o.t,o.a)}</td></tr>`}).join('')||'<tr><td colspan="7" class="sub">No branches match the search.</td></tr>'};
+const asSvcRows=list=>{const ro=PER.m?'':'readonly title="Select a month to enter data"';return list.map(x=>{const i=asList('svc').indexOf(x),o=asGet('svc',x.b),inp=(f,v,pf)=>`<td><input class="wv as" data-f="${f}" data-i="${i}" data-k="svc" type="text" inputmode="decimal" value="${v?pf(v):''}" ${ro} placeholder="${f=='nc'?'0':'₱0'}"></td>`;return`<tr data-i="${i}"><td><b>${esc(x.b)}</b></td>${inp('t',o.t,peso)}${inp('sf',o.sf,peso)}<td class="num fc">${asF(o.fcs)}</td>${inp('nc',o.nc,nf)}<td class="num st">${asF(o.a)}</td><td class="sp">${asPf(o.t,o.a)}</td></tr>`}).join('')||'<tr><td colspan="7" class="sub">No branches match the search.</td></tr>'};
 const asSvcFoot=list=>{const s=list.map(x=>asGet('svc',x.b)).reduce((r,o)=>({t:r.t+o.t,a:r.a+o.a,sf:r.sf+o.sf,fcs:r.fcs+o.fcs,nc:r.nc+o.nc}),{t:0,a:0,sf:0,fcs:0,nc:0});return`<tr><td>TOTAL</td><td class="num">${asF(s.t)}</td><td class="num">${asF(s.sf)}</td><td class="num">${asF(s.fcs)}</td><td class="num">${s.nc?nf(s.nc):'—'}</td><td class="num">${asF(s.a)}</td><td>${asPf(s.t,s.a)}</td></tr>`};
-const asSvcLive=()=>document.querySelectorAll('#asb-svc tr[data-i]').forEach(tr=>{const o=asGet('svc',asList('svc')[+tr.dataset.i].b);tr.querySelector('.st').textContent=asF(o.a);tr.querySelector('.sp').innerHTML=asPf(o.t,o.a)});
+const asSvcLive=()=>document.querySelectorAll('#asb-svc tr[data-i]').forEach(tr=>{const o=asGet('svc',asList('svc')[+tr.dataset.i].b);tr.querySelector('.fc').textContent=asF(o.fcs);tr.querySelector('.st').textContent=asF(o.a);tr.querySelector('.sp').innerHTML=asPf(o.t,o.a)});
 const asOilV=b=>{const o=asGet('oil',b);return{c:o.a,pm:o.pm,py:o.py}};
 const asGo=(p,c)=>{if(!c)return'—';const g=(c-p)/c*100;return`<span class="tag ${g>=0?'ok':'er'}">${g>=0?'▲ +':'▼ −'}${Math.abs(g).toFixed(1)}%</span>`};
 const asOilRows=list=>{const ro=PER.m?'':'readonly title="Select a month to enter data"';return list.map(x=>{const i=asList('oil').indexOf(x),o=asOilV(x.b);return`<tr data-i="${i}"><td><b>${esc(x.b)}</b></td><td><input class="wv as" data-f="a" data-i="${i}" data-k="oil" type="text" inputmode="decimal" value="${o.c?peso(o.c):''}" ${ro} placeholder="₱0"></td><td><input class="wv as" data-f="pm" data-i="${i}" data-k="oil" type="text" inputmode="decimal" value="${o.pm?peso(o.pm):''}" ${ro} placeholder="₱0"></td><td><input class="wv as" data-f="py" data-i="${i}" data-k="oil" type="text" inputmode="decimal" value="${o.py?peso(o.py):''}" ${ro} placeholder="₱0"></td><td class="mm">${asGo(o.pm,o.c)}</td><td class="yy">${asGo(o.py,o.c)}</td></tr>`}).join('')||'<tr><td colspan="6" class="sub">No branches match the search.</td></tr>'};
@@ -385,12 +390,24 @@ function fillB(){const a=$('#uma').value,v=$('#umb').value,l=AREAS[a]||[];$('#um
 function draw(){const f=$('#umf'),fv=f.value;if(!$('#uma').options.length){$('#uma').innerHTML=aOpts;fillB()}f.innerHTML='<option value="">All areas</option>'+aOpts;f.value=fv;
 const mEl=$('#umfm'),mPrev=mEl.value,ms=[...new Set(U.map(r=>(r.d||'').slice(0,7)).filter(Boolean))].sort().reverse();mEl.innerHTML='<option value="">All months</option>'+ms.map(k=>'<option value="'+k+'">'+MN[+k.slice(5,7)-1]+' '+k.slice(0,4)+'</option>').join('');mEl.value=ms.includes(mPrev)?mPrev:'';const fmv=mEl.value;
 const q=$('#umq').value.toLowerCase(),list=U.map((r,i)=>({r,i})).filter(o=>(!fv||o.r.a==fv)&&(!fmv||(o.r.d||'').slice(0,7)==fmv)&&(!q||Object.values(o.r).join(' ').toLowerCase().includes(q)));
-$('#umt').innerHTML=list.length?list.map(o=>'<tr><td><b>'+esc(o.r.b)+'</b></td><td>'+esc(o.r.a)+'</td><td>'+esc(o.r.p)+'</td><td>'+esc(o.r.n)+'</td><td>'+esc(o.r.v)+'</td><td class="num">'+esc(o.r.d)+'</td><td>'+esc(o.r.m)+'</td><td>'+(o.r.ph?'<img class="umimg" src="'+o.r.ph+'" alt="Photo" style="width:48px;height:48px;object-fit:cover;border-radius:8px;cursor:zoom-in">':'—')+'</td><td><button class="tbtn umdel" data-i="'+o.i+'">🗑 Delete</button></td></tr>').join(''):'<tr><td colspan="9" class="sub">No records yet.</td></tr>'}
+$('#umt').innerHTML=list.length?list.map(o=>'<tr><td><b>'+esc(o.r.b)+'</b></td><td>'+esc(o.r.a)+'</td><td>'+esc(o.r.p)+'</td><td>'+esc(o.r.n)+'</td><td>'+esc(o.r.v)+'</td><td class="num">'+esc(o.r.d)+'</td><td>'+esc(o.r.m)+'</td><td>'+(o.r.ph?'<img class="umimg" src="'+o.r.ph+'" alt="Photo" style="width:48px;height:48px;object-fit:cover;border-radius:8px;cursor:zoom-in">':'—')+'</td><td><button class="tbtn umview" style="white-space:nowrap" data-i="'+o.i+'">👁 View</button></td><td><button class="tbtn umdel" style="white-space:nowrap" data-i="'+o.i+'">🗑 Delete</button></td></tr>').join(''):'<tr><td colspan="10" class="sub">No records yet.</td></tr>'}
 $('#umd').value=today();
 $('#umadd').onclick=()=>{const n=$('#umn').value.trim();if(!n){$('#umn').focus();return}
 U.unshift({b:$('#umb').value,a:$('#uma').value.trim(),p:$('#ump').value.trim(),n,v:$('#umv').value.trim(),d:$('#umd').value||today(),m:$('#umm').value.trim(),ph:curPh});
 curPh='';$('#umph').value='';$('#umst').textContent='';sv();['ump','umn','umv','umm'].forEach(id=>$('#'+id).value='');draw()};
 $('#umt').addEventListener('click',e=>{const b=e.target.closest('.umdel');if(!b)return;const i=+b.dataset.i,o=document.createElement('div');o.style.cssText='position:fixed;inset:0;z-index:99;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:20px';o.innerHTML='<div class="card" style="max-width:360px;text-align:center"><h2>Delete this record?</h2><p class="sub">Are you sure you want to delete this data? This cannot be undone.</p><p><button class="btn umyes">Yes, delete</button> <button class="tbtn umno">Cancel</button></p></div>';o.querySelector('.umyes').onclick=()=>{U.splice(i,1);sv();draw();o.remove()};o.querySelector('.umno').onclick=()=>o.remove();o.onclick=ev=>{if(ev.target===o)o.remove()};document.body.appendChild(o)});
+/* View: percentage of each violation for one employee (same name + branch) */
+$('#umt').addEventListener('click',e=>{const b=e.target.closest('.umview');if(!b)return;const r0=U[+b.dataset.i];if(!r0)return;
+const nk=s=>String(s||'').replace(/\s+/g,' ').trim().toLowerCase(),recs=U.filter(r=>nk(r.n)==nk(r0.n)&&nk(r.b)==nk(r0.b)),cnt={};
+recs.forEach(r=>{const v=(r.v||'').trim()||'Not specified';cnt[v]=(cnt[v]||0)+1});
+const tot=recs.length,rows=Object.entries(cnt).sort((x,y)=>y[1]-x[1]||x[0].localeCompare(y[0])),top=rows[0],dates=recs.map(r=>r.d).filter(Boolean).sort();
+const o=document.createElement('div');o.style.cssText='position:fixed;inset:0;z-index:99;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px';
+o.innerHTML='<div class="card" style="width:min(520px,100%);max-height:90vh;overflow:auto"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><h2 style="margin:0">Violation Summary</h2><p class="sub" style="margin:4px 0 0"><b>'+esc(r0.n)+'</b> · '+esc(r0.b)+(r0.p?' · '+esc(r0.p):'')+'</p></div><button class="tbtn umcl" aria-label="Close">✕</button></div>'
++'<p class="sub" style="margin:12px 0">'+tot+' violation record'+(tot>1?'s':'')+(dates.length?' · '+esc(dates[0])+(dates[dates.length-1]!=dates[0]?' to '+esc(dates[dates.length-1]):''):'')+'</p>'
++'<div style="padding:10px 12px;border:1px solid var(--bd);border-radius:10px;margin-bottom:14px"><span class="sub">Most frequent violation</span><div style="font-weight:700;font-size:16px;margin-top:2px">'+esc(top[0])+' <span class="tag er">'+(top[1]/tot*100).toFixed(1)+'%</span></div></div>'
++rows.map(([k,n])=>{const p=n/tot*100;return'<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;gap:10px;font-weight:600"><span>'+esc(k)+'</span><span class="num">'+p.toFixed(1)+'% <span class="sub" style="font-weight:400">('+n+' of '+tot+')</span></span></div><div class="bar" style="margin-top:6px"><i style="width:'+p+'%"></i></div></div>'}).join('')
++'<p class="sub" style="margin:6px 0 0;font-size:12px">Percentage = number of times for each violation ÷ all violation records of this employee (same name and branch).</p></div>';
+o.querySelector('.umcl').onclick=()=>o.remove();o.onclick=ev=>{if(ev.target===o)o.remove()};document.body.appendChild(o)});
 $('#umq').oninput=draw;$('#umf').onchange=draw;$('#uma').onchange=fillB;$('#umfm').onchange=draw;
 let curPh='';
 $('#umph').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,900/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);curPh=c.toDataURL('image/jpeg',.72);$('#umst').textContent='Photo attached ✓'};im.src=r.result};r.readAsDataURL(f)};
@@ -426,14 +443,21 @@ $('#teq').oninput=draw;$('#tefm').onchange=draw;document.querySelector('.nav but
 (function(){const KEY='contractPreviewByBranch';let CT={};try{const p=JSON.parse(localStorage.getItem(KEY));if(p&&typeof p=='object'&&!Array.isArray(p))CT=p;else{const o=JSON.parse(localStorage.getItem('contractPreview'));if(Array.isArray(o))o.slice().reverse().forEach(r=>{CT[r.b]={l:r.l,e:r.e,s:r.s,x:r.x,n:r.n,y:r.y,m:r.m,w:r.w}})}}catch(e){}
 const BR=()=>Object.values(window.__AREAS||{}).flat().sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})),F=v=>v?peso(v):'—',g=(b,k)=>(CT[b]&&CT[b][k])||'';
 const sv=()=>{try{localStorage.setItem(KEY,JSON.stringify(CT));$('#ctst').textContent=''}catch(e){$('#ctst').textContent='Storage is full.'}};
+let PH={};try{const p=JSON.parse(localStorage.getItem('contractPhotos'));if(p&&typeof p=='object'&&!Array.isArray(p))PH=p}catch(e){}
+const svp=()=>{try{localStorage.setItem('contractPhotos',JSON.stringify(PH));$('#ctst').textContent=''}catch(e){$('#ctst').textContent='Storage is full - the photo was not saved.'}};
 const vis=()=>{const q=$('#ctq').value.toLowerCase();return BR().filter(b=>!q||(b+' '+g(b,'l')+' '+g(b,'n')).toLowerCase().includes(q))};
 function cls(b){const x=g(b,'x');if(!x)return'ct-violet';const t=new Date();t.setHours(0,0,0,0);const e=new Date(x+'T00:00:00'),m6=new Date(t),y1=new Date(t);m6.setMonth(m6.getMonth()+6);y1.setFullYear(y1.getFullYear()+1);return e<=t?'ct-gray':e<=m6?'ct-red':e<=y1?'ct-yellow':'ct-green'}
-function foot(){const L=vis(),s=k=>L.reduce((a,b)=>a+(+g(b,k)||0),0);$('#ctf').innerHTML='<tr><td>TOTAL</td><td></td><td></td><td></td><td></td><td></td><td></td><td class="num">'+F(s('m'))+'</td><td class="num">'+F(s('w'))+'</td></tr>'}
+function foot(){const L=vis(),s=k=>L.reduce((a,b)=>a+(+g(b,k)||0),0);$('#ctf').innerHTML='<tr><td>TOTAL</td><td></td><td></td><td></td><td></td><td></td><td></td><td class="num">'+F(s('m'))+'</td><td class="num">'+F(s('w'))+'</td><td></td></tr>'}
+function phCell(b,i){const u=PH[b];return'<td style="white-space:nowrap">'+(u?'<img class="ctimg" data-i="'+i+'" src="'+u+'" alt="Photo" style="width:44px;height:44px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-right:6px;cursor:zoom-in"> ':'')+'<label class="tbtn" style="cursor:pointer" title="'+(u?'Replace photo':'Upload photo')+'">'+(u?'🔄':'📷 Upload')+'<input type="file" accept="image/*" class="ctfile" data-i="'+i+'" hidden></label>'+(u?' <button type="button" class="tbtn ctrm" data-i="'+i+'" title="Remove photo">✕</button>':'')+'</td>'}
 function draw(){const all=BR(),inp=(b,f,t,ph,w)=>{const v=g(b,f);return'<td><input class="wv" data-i="'+all.indexOf(b)+'" data-f="'+f+'" type="'+t+'"'+(t=='number'?' min="0" step="any"':'')+' value="'+esc(v||'')+'" placeholder="'+ph+'" style="min-width:'+w+'px"></td>'};
-$('#ctr').innerHTML=vis().map(b=>'<tr class="'+cls(b)+'"><td><b>'+esc(b)+'</b></td>'+inp(b,'l','text','Lessor',130)+inp(b,'e','text','e.g. 5% yearly',110)+inp(b,'s','date','',140)+inp(b,'x','date','',140)+inp(b,'n','text','Notary',120)+inp(b,'y','number','Years',70)+inp(b,'m','number','₱0',110)+inp(b,'w','number','₱0',120)+'</tr>').join('')||'<tr><td colspan="9" class="sub">No branches match the search.</td></tr>';foot()}
+$('#ctr').innerHTML=vis().map(b=>'<tr class="'+cls(b)+'"><td><b>'+esc(b)+'</b></td>'+inp(b,'l','text','Lessor',130)+inp(b,'e','text','e.g. 5% yearly',110)+inp(b,'s','date','',140)+inp(b,'x','date','',140)+inp(b,'n','text','Notary',120)+inp(b,'y','number','Years',70)+inp(b,'m','number','₱0',110)+inp(b,'w','number','₱0',120)+phCell(b,all.indexOf(b))+'</tr>').join('')||'<tr><td colspan="10" class="sub">No branches match the search.</td></tr>';foot()}
 $('#ctr').addEventListener('input',e=>{const t=e.target,f=t.dataset.f;if(!f)return;const b=BR()[+t.dataset.i],o=CT[b]||(CT[b]={});o[f]=t.type=='number'?(+t.value||0):t.value;
 if(f=='s'||f=='x'){const tr=t.closest('tr'),a=o.s,z=o.x;if(a&&z&&z>a){o.y=Math.round((new Date(z)-new Date(a))/(365.25*864e5)*10)/10;tr.querySelector('[data-f="y"]').value=o.y}}
 t.closest('tr').className=cls(b);sv();foot()});
+$('#ctr').addEventListener('change',e=>{const t=e.target;if(!t.classList.contains('ctfile'))return;const f=t.files[0];if(!f)return;const b=BR()[+t.dataset.i],r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,700/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);PH[b]=c.toDataURL('image/jpeg',.6);svp();draw()};im.src=r.result};r.readAsDataURL(f)});
+$('#ctr').addEventListener('click',e=>{const m=e.target.closest('.ctimg'),x=e.target.closest('.ctrm');
+if(m){const o=document.createElement('div');o.style.cssText='position:fixed;inset:0;z-index:99;background:rgba(0,0,0,.8);display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;cursor:zoom-out;padding:20px';o.innerHTML='<div style="color:#fff;font-weight:700">'+esc(BR()[+m.dataset.i])+'</div><img src="'+m.src+'" style="max-width:100%;max-height:85%;border-radius:12px">';o.onclick=()=>o.remove();document.body.appendChild(o);return}
+if(x){const b=BR()[+x.dataset.i],o=document.createElement('div');o.style.cssText='position:fixed;inset:0;z-index:99;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:20px';o.innerHTML='<div class="card" style="max-width:360px;text-align:center"><h2>Remove this photo?</h2><p class="sub">Are you sure you want to delete the photo of '+esc(b)+'? This cannot be undone.</p><p><button class="btn ctyes">Yes, delete</button> <button class="tbtn ctno">Cancel</button></p></div>';o.querySelector('.ctyes').onclick=()=>{delete PH[b];svp();draw();o.remove()};o.querySelector('.ctno').onclick=()=>o.remove();o.onclick=ev=>{if(ev.target===o)o.remove()};document.body.appendChild(o)}});
 $('#ctq').oninput=draw;document.querySelector('.nav button[data-s="ad-cont"]').addEventListener('click',draw);draw()})();
 (function(){const KEY='facilityConcernsByMonth',td=new Date(),today=()=>td.toISOString().slice(0,10),pad=n=>String(n).padStart(2,'0');let D={};
 try{const p=JSON.parse(localStorage.getItem(KEY));if(p&&typeof p=='object'&&!Array.isArray(p))D=p;else{const o=JSON.parse(localStorage.getItem('facilityConcerns'));if(Array.isArray(o))o.forEach(r=>{const k=(r.d||today()).slice(0,7);(D[k]||(D[k]=[])).push(r)})}}catch(e){}
@@ -454,3 +478,93 @@ $('#fcadd').onclick=()=>{const cur=ym==td.getFullYear()+'-'+pad(td.getMonth()+1)
 $('#fct').addEventListener('input',e=>{const t=e.target,f=t.dataset.f;if(!f)return;L()[+t.dataset.i][f]=t.value;sv();if(f=='s')draw()});
 $('#fct').addEventListener('click',e=>{const b=e.target.closest('.fcdel');if(!b)return;const i=+b.dataset.i,o=document.createElement('div');o.style.cssText='position:fixed;inset:0;z-index:99;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:20px';o.innerHTML='<div class="card" style="max-width:360px;text-align:center"><h2>Delete this concern?</h2><p class="sub">Are you sure you want to delete this data? This cannot be undone.</p><p><button class="btn fcyes">Yes, delete</button> <button class="tbtn fcno">Cancel</button></p></div>';o.querySelector('.fcyes').onclick=()=>{L().splice(i,1);sv();draw();o.remove()};o.querySelector('.fcno').onclick=()=>o.remove();o.onclick=ev=>{if(ev.target===o)o.remove()};document.body.appendChild(o)});
 $('#fcq').oninput=draw;document.querySelector('.nav button[data-s="fac"]').addEventListener('click',draw);draw()})();
+
+/* ===== After Sales Report: Import Excel + Download (Excel / PDF) for Service Revenue and Multi-Brand Oil Sales ===== */
+(function(){
+const KK=s=>String(s==null?'':s).toUpperCase().replace(/[^A-Z0-9]/g,''),HH=s=>String(s==null?'':s).toLowerCase().replace(/[^a-z0-9]/g,'');
+const isBr=h=>/^(branch|branchname|branches|branchlocation|store|outlet)$/.test(h);
+const rnd1=v=>v===''?'':Math.round(v*10)/10;
+const gr=(p,c)=>c?rnd1((c-p)/c*100):'';
+const CF={
+ svc:{label:'Service Revenue',file:'service-revenue',m:'#asSvcM',inp:'#asSvcF',btn:'#asSvcD',
+  head:['Branch','Target','Service Fee','FCS','Number of Coupon','Total','Performance (%)'],money:[1,2,3,5],
+  data(){const R=B.map(x=>{const o=asGet('svc',x.b);return[x.b,o.t,o.sf,o.fcs,o.nc,o.a,o.t?rnd1(o.a/o.t*100):'']});
+   const s=R.reduce((r,v)=>[r[0]+v[1],r[1]+v[2],r[2]+v[3],r[3]+v[4],r[4]+v[5]],[0,0,0,0,0]);
+   return R.concat([['TOTAL',s[0],s[1],s[2],s[3],s[4],s[0]?rnd1(s[4]/s[0]*100):'']])},
+  col(h){if(/growth|perf|percent|total|fcs/.test(h))return null;if(/target/.test(h))return't';if(/servicefee|^fee/.test(h))return'sf';if(/coupon/.test(h))return'nc';return null}},
+ oil:{label:'Multi-Brand Oil Sales',file:'multi-brand-oil-sales',m:'#asOilM',inp:'#asOilF',btn:'#asOilD',
+  head:['Branch','Current Year','Previous Month','Previous Year','Month Over Month Growth (%)','Year Over Year Growth (%)'],money:[1,2,3],pctCols:[4,5],
+  data(){const R=B.map(x=>{const o=asOilV(x.b);return[x.b,o.c,o.pm,o.py,gr(o.pm,o.c),gr(o.py,o.c)]});
+   const s=R.reduce((r,v)=>[r[0]+v[1],r[1]+v[2],r[2]+v[3]],[0,0,0]);
+   return R.concat([['TOTAL',s[0],s[1],s[2],gr(s[1],s[0]),gr(s[2],s[0])]])},
+  col(h){if(/growth|mom|yoy|perf|percent/.test(h))return null;if(/current/.test(h))return'a';if(/previousmonth|prevmonth|lastmonth/.test(h))return'pm';if(/previousyear|prevyear|lastyear/.test(h))return'py';return null}}
+};
+const say=(k,t)=>{$(CF[k].m).textContent=t};
+const period=()=>PER.m?MN[PER.m-1]+' '+PER.y:'Year '+PER.y;
+const stamp=()=>PER.m?pk(PER.m):String(PER.y);
+function saveFile(name,blob){const a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(u)},1500)}
+
+function doImport(k,f){
+ const C=CF[k];
+ if(typeof XLSX=='undefined'){say(k,'Excel library failed to load.');return}
+ if(!PER.m){say(k,'Pick a month first, then import.');return}
+ const r=new FileReader();
+ r.onerror=()=>say(k,'Could not read the file.');
+ r.onload=ev=>{try{
+  const wb=XLSX.read(ev.target.result,{type:'array'}),key=pk(PER.m);
+  const byName={};B.forEach(x=>{byName[KK(x.b)]=x});
+  let upd=0,sheets=0;const miss=[],seen=new Set();
+  wb.SheetNames.forEach(sn=>{
+   const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:'',raw:true,blankrows:false});
+   const hi=rows.findIndex((row,i)=>i<40&&row.some(c=>isBr(HH(c))));if(hi<0)return;
+   const col={};rows[hi].map(HH).forEach((h,c)=>{if(!h)return;if(col.b==null&&isBr(h)){col.b=c;return}const f2=C.col(h);if(f2&&col[f2]==null)col[f2]=c});
+   const fields=['t','sf','nc','a','pm','py'].filter(z=>col[z]!=null);if(!fields.length)return;
+   sheets++;
+   rows.slice(hi+1).forEach(row=>{
+    const nm=String(row[col.b]==null?'':row[col.b]).replace(/\s+/g,' ').trim();if(!nm)return;
+    if(/^(TOTAL|GRAND TOTAL|OVERALL|SUBTOTAL)/i.test(nm))return;
+    const x=byName[KK(nm)];if(!x){if(miss.indexOf(nm)<0)miss.push(nm);return}
+    const vals={};fields.forEach(z=>{const v=row[col[z]];if(v===''||v==null)return;vals[z]=Math.max(0,num(v))});
+    if(!Object.keys(vals).length)return;
+    AS[k]=AS[k]||{};const o=AS[k][key]||(AS[k][key]={}),rec=o[x.b]||(o[x.b]={t:0,a:0});
+    Object.assign(rec,vals);if(!seen.has(x.b)){seen.add(x.b);upd++}
+   })});
+  if(!sheets){say(k,'No usable columns found. The file needs a "Branch" column and the same column names as the table.');return}
+  if(upd)asSave();drawAsr();asCalc();
+  say(k,(upd?'Imported '+upd+' branch'+(upd>1?'es':'')+' for '+MN[PER.m-1]+' '+PER.y+'.':'No matching branches were found.')+(miss.length?' Not found in your branch list: '+miss.slice(0,6).join(', ')+(miss.length>6?' and '+(miss.length-6)+' more':'')+'.':''));
+ }catch(e){console.error(e);say(k,'Could not read this file. Please use an .xlsx, .xls or .csv file.')}};
+ r.readAsArrayBuffer(f);
+}
+
+let dlK='svc';
+function xlsxOut(k){
+ if(typeof XLSX=='undefined'){say(k,'Excel library failed to load.');return}
+ const C=CF[k],rows=C.data(),ws=XLSX.utils.aoa_to_sheet([C.head,...rows]);
+ ws['!cols']=C.head.map((h,i)=>({wch:i?Math.max(16,h.length+2):26}));
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,C.label.slice(0,31));
+ const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+ saveFile(C.file+'-'+stamp()+'.xlsx',new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));say(k,'Excel file downloaded.');
+}
+function pdfOut(k){
+ const J=window.jspdf&&window.jspdf.jsPDF;if(!J){say(k,'PDF library failed to load.');return}
+ const C=CF[k];
+ try{const doc=new J({orientation:'landscape',unit:'mm',format:'a4'});
+  if(typeof doc.autoTable!='function'){say(k,'PDF table library failed to load.');return}
+  const rows=C.data(),php=v=>v===''||v==null||v===0?'-':'PHP '+Math.round(v).toLocaleString('en-PH');
+  const fmt=(v,j)=>{if(j==0)return String(v);if(k=='svc'){if(j==4)return v?Math.round(v).toLocaleString('en-PH'):'-';if(j==6)return v===''?'-':v+'%';return php(v)}
+   if(j>=4)return v===''?'-':(v>=0?'+':'')+v+'%';return php(v)};
+  doc.setFontSize(14);doc.text(C.label+' - '+period(),10,12);
+  doc.autoTable({head:[C.head],body:rows.map(r=>r.map(fmt)),startY:17,theme:'grid',styles:{fontSize:8,cellPadding:1.6,halign:'center',valign:'middle',overflow:'linebreak'},headStyles:{fillColor:[20,40,75],textColor:255,halign:'center'},columnStyles:{0:{halign:'left',fontStyle:'bold'}},margin:{left:10,right:10,top:12,bottom:10},
+   didParseCell:d=>{if(d.section=='body'&&d.row.index==rows.length-1){d.cell.styles.fontStyle='bold';d.cell.styles.fillColor=[230,235,244]}}});
+  saveFile(C.file+'-'+stamp()+'.pdf',new Blob([doc.output('arraybuffer')],{type:'application/pdf'}));say(k,'PDF file downloaded.');
+ }catch(e){console.error(e);say(k,'Could not create the PDF file.')}
+}
+['svc','oil'].forEach(k=>{
+ const C=CF[k];
+ $(C.inp).onchange=e=>{const f=e.target.files[0];if(f)doImport(k,f);e.target.value=''};
+ $(C.btn).onclick=()=>{dlK=k;$('#asDlSub').textContent='Choose the file format for the '+C.label+' table ('+period()+').';$('#asDlg').showModal()};
+});
+$('#asDlC').onclick=()=>$('#asDlg').close();
+$('#asDlX').onclick=()=>{$('#asDlg').close();xlsxOut(dlK)};
+$('#asDlP').onclick=()=>{$('#asDlg').close();pdfOut(dlK)};
+})();
