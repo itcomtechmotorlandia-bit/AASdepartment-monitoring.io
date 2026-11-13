@@ -209,7 +209,7 @@ function drawPartsKpis(){const total=SPB.reduce((s,b)=>s+spMo(b),0),set=SPB.filt
 function fk(){}
 // chart
 function noticeRows(list){return list.map(({x,target,income})=>'<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--bd)"><div><b>'+esc(x.b)+'</b><div class="sub">'+esc(x.ar)+'</div></div><span class="sub">Needs '+peso(target-income)+' · '+peso(income)+' / '+peso(target)+'</span></div>').join('')}
-function drawNotices(){if(!B.length){if($('#noticeDlg').open)$('#noticeDlg').close();$('#mix').innerHTML='<p class="sub">No branch data yet. Add a branch to begin.</p>';return}const L=B.map(x=>({x,target:TG(x),income:x.wi.reduce((s,w)=>s+w,0)})).filter(o=>o.target>o.income).sort((a,b)=>(b.target-b.income)-(a.target-a.income));if(!L.length){if($('#noticeDlg').open)$('#noticeDlg').close();$('#mix').innerHTML='<p class="sub">All branches have achieved the selected period target.</p>';return}const shown=L.slice(0,5),extra=L.slice(5);$('#mix').innerHTML='<p class="sub">Branches below the selected period target'+(L.length>5?' · Showing 5 of '+L.length:'')+':</p>'+noticeRows(shown)+(L.length>5?'<p><button type="button" class="tbtn" id="moreNotices">Show More</button></p>':'');if(L.length>5)$('#moreNotices').onclick=()=>{const dlg=$('#noticeDlg');$('#noticeDlgSub').textContent='Showing '+extra.length+' additional branches below the selected period target.';$('#noticeItems').innerHTML=noticeRows(extra);dlg.showModal()};if($('#noticeDlg').open&&L.length>5){$('#noticeDlgSub').textContent='Showing '+extra.length+' additional branches below the selected period target.';$('#noticeItems').innerHTML=noticeRows(extra)}}
+function drawNotices(){if(!B.length){window.__noticeL=[];if($('#noticeDlg').open)$('#noticeDlg').close();$('#mix').innerHTML='<p class="sub">No branch data yet. Add a branch to begin.</p>';return}const L=B.map(x=>({x,target:TG(x),income:x.wi.reduce((s,w)=>s+w,0)})).filter(o=>o.target>o.income).sort((a,b)=>(b.target-b.income)-(a.target-a.income));window.__noticeL=L;if(!L.length){if($('#noticeDlg').open)$('#noticeDlg').close();$('#mix').innerHTML='<p class="sub">All branches have achieved the selected period target.</p>';return}const shown=L.slice(0,5),extra=L.slice(5);$('#mix').innerHTML='<p class="sub">Branches below the selected period target'+(L.length>5?' · Showing 5 of '+L.length:'')+':</p>'+noticeRows(shown)+(L.length>5?'<p><button type="button" class="tbtn" id="moreNotices">Show More</button></p>':'');if(L.length>5)$('#moreNotices').onclick=()=>{const dlg=$('#noticeDlg');$('#noticeDlgSub').textContent='Showing '+extra.length+' additional branches below the selected period target.';$('#noticeItems').innerHTML=noticeRows(extra);dlg.showModal()};if($('#noticeDlg').open&&L.length>5){$('#noticeDlgSub').textContent='Showing '+extra.length+' additional branches below the selected period target.';$('#noticeItems').innerHTML=noticeRows(extra)}}
 $('#closeNotices').onclick=()=>$('#noticeDlg').close();
 function drawCh(){
  if(!B.length){$('#ch').innerHTML='<p class="sub">No branch data yet. Add a branch to begin.</p>';$('#mix').innerHTML='<p class="sub">No branch data yet.</p>';return}
@@ -572,4 +572,76 @@ function pdfOut(k){
 $('#asDlC').onclick=()=>$('#asDlg').close();
 $('#asDlX').onclick=()=>{$('#asDlg').close();xlsxOut(dlK)};
 $('#asDlP').onclick=()=>{$('#asDlg').close();pdfOut(dlK)};
+})();
+
+/* ===== Download the Income graph (PNG / PDF) and the Branches Below Target list (Excel / PDF) ===== */
+(function(){
+const V=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const per=()=>PER.m?MN[PER.m-1]+' '+PER.y:'Year '+PER.y,stamp=()=>PER.m?pk(PER.m):String(PER.y);
+function saveFile(name,blob){const a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(u)},1500)}
+const say=t=>{const m=document.getElementById('dwMsg');if(m)m.textContent=t||''};
+/* little pop-up that asks for the file type */
+let dlg,cur;
+(function(){const st=document.createElement('style');st.textContent='#dwDlg::backdrop{backdrop-filter:blur(3px);background:rgba(6,12,26,.66)}';document.head.appendChild(st);
+ dlg=document.createElement('dialog');dlg.id='dwDlg';dlg.style.cssText='width:min(420px,calc(100% - 32px));padding:20px;border:1px solid var(--bd);border-radius:14px;background:var(--card);color:var(--tx);box-shadow:0 16px 50px rgba(0,0,0,.28)';
+ dlg.innerHTML='<h2 style="margin:0 0 6px" id="dwT">Download</h2><p class="sub" id="dwS" style="margin:0 0 14px"></p><div id="dwB" style="display:flex;gap:10px;flex-wrap:wrap"></div><p class="sub" id="dwMsg" style="margin:12px 0 0"></p>';document.body.appendChild(dlg)})();
+function ask(title,sub,opts){document.getElementById('dwT').textContent=title;document.getElementById('dwS').textContent=sub;say('');
+ const b=document.getElementById('dwB');b.innerHTML='';
+ opts.concat([['Close',null]]).forEach(([lab,fn])=>{const x=document.createElement('button');x.type='button';x.className=fn?'btn':'tbtn';x.textContent=lab;x.onclick=async()=>{if(!fn){dlg.close();return}x.disabled=true;try{await fn();dlg.close()}catch(e){console.error(e);say('Could not create the file: '+(e&&e.message||e))}x.disabled=false};b.appendChild(x)});
+ dlg.showModal()}
+
+/* ---- graph -> canvas ---- */
+function svgToImg(svg,W){return new Promise((res,rej)=>{
+ const vb=svg.viewBox&&svg.viewBox.baseVal,rect=svg.getBoundingClientRect(),vw=(vb&&vb.width)||rect.width,vh=(vb&&vb.height)||rect.height,H=Math.round(W*vh/vw),c=svg.cloneNode(true);
+ c.setAttribute('xmlns','http://www.w3.org/2000/svg');if(!c.getAttribute('viewBox'))c.setAttribute('viewBox','0 0 '+vw+' '+vh);
+ c.setAttribute('width',W);c.setAttribute('height',H);c.setAttribute('font-family','Inter, Arial, Helvetica, sans-serif');c.removeAttribute('style');
+ c.querySelectorAll('.ch-draw').forEach(p=>{p.style.strokeDasharray='';p.style.strokeDashoffset=''});
+ c.querySelectorAll('.ch-area').forEach(p=>{p.style.opacity='1'});
+ const s=new XMLSerializer().serializeToString(c).replace(/var\((--[\w-]+)(?:\s*,\s*([^)]+))?\)/g,(m,n,f)=>V(n)||(f||'#888').trim());
+ const im=new Image();im.onload=()=>res({im,H});im.onerror=()=>rej(new Error('Could not draw the graph.'));
+ im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s)})}
+function wrap(ctx,text,x,y,maxW,lh){let line='';text.split(/\s+/).forEach(w=>{const t=line?line+' '+w:w;if(ctx.measureText(t).width>maxW&&line){ctx.fillText(line,x,y);y+=lh;line=w}else line=t});if(line){ctx.fillText(line,x,y);y+=lh}return y}
+async function chartCanvas(bid,tid){
+ const box=document.getElementById(bid),svg=box.querySelector('svg');if(!svg)throw new Error('There is no graph to download yet.');
+ const S=2,W=1100,P=28,iw=W-P*2,F='Inter, Arial, Helvetica, sans-serif';
+ const title=document.getElementById(tid).textContent,tiles=[...box.querySelectorAll(':scope > div:first-child > .card')].map(c=>[c.children[0].textContent,c.children[1].textContent]),
+  legend=[...box.querySelectorAll(':scope > div:nth-of-type(3) > span')].map(s=>{const i=s.querySelector('i'),cs=i?getComputedStyle(i):null;return{t:s.textContent,c:cs?cs.borderTopColor:'#888',d:cs?cs.borderTopStyle:'solid'}}),
+  note=(box.querySelector(':scope > .sub')||{}).textContent||'';
+ const g=await svgToImg(svg,iw),tmp=document.createElement('canvas').getContext('2d');
+ const rows=Math.ceil(tiles.length/2),tileH=58,gap=10;
+ tmp.font='13px '+F;let ny=0;{const c=document.createElement('canvas').getContext('2d');c.font='13px '+F;ny=wrap(c,note,0,0,iw,18)}
+ const legRows=Math.ceil(legend.length/2),H=Math.round(P+34+rows*(tileH+gap)+g.H+14+legRows*24+10+ny+P);
+ const cv=document.createElement('canvas');cv.width=W*S;cv.height=H*S;const x=cv.getContext('2d');x.scale(S,S);
+ x.fillStyle=V('--card')||'#fff';x.fillRect(0,0,W,H);x.textBaseline='alphabetic';
+ let y=P+18;x.fillStyle=V('--tx')||'#000';x.font='700 20px '+F;x.fillText(title,P,y);y+=16;
+ const tw=(iw-gap)/2;tiles.forEach((t,i)=>{const tx=P+(i%2)*(tw+gap),ty=y+Math.floor(i/2)*(tileH+gap);x.fillStyle=V('--bg')||'#f2f4f8';x.strokeStyle=V('--bd')||'#ddd';x.lineWidth=1;
+  x.beginPath();x.roundRect?x.roundRect(tx,ty,tw,tileH,10):x.rect(tx,ty,tw,tileH);x.fill();x.stroke();
+  x.fillStyle=V('--mu')||'#666';x.font='13px '+F;x.fillText(t[0],tx+14,ty+22);x.fillStyle=V('--tx')||'#000';x.font='700 18px '+F;x.fillText(t[1],tx+14,ty+46)});
+ y+=rows*(tileH+gap);x.drawImage(g.im,P,y,iw,g.H);y+=g.H+22;
+ legend.forEach((l,i)=>{const lx=P+(i%2)*(iw/2),ly=y+Math.floor(i/2)*24;x.strokeStyle=l.c;x.lineWidth=3;x.setLineDash(l.d=='dashed'?[7,4]:l.d=='dotted'?[2,4]:[]);x.beginPath();x.moveTo(lx,ly-5);x.lineTo(lx+22,ly-5);x.stroke();x.setLineDash([]);
+  x.fillStyle=V('--tx')||'#000';x.font='14px '+F;x.fillText(l.t,lx+30,ly)});
+ y+=legRows*24+10;x.fillStyle=V('--mu')||'#666';x.font='13px '+F;wrap(x,note,P,y,iw,18);
+ return cv}
+const blobOf=cv=>new Promise((r,j)=>cv.toBlob(b=>b?r(b):j(new Error('Could not create the image.')),'image/png'));
+async function chartPng(bid,tid,pre){const cv=await chartCanvas(bid,tid);saveFile(pre+stamp()+'.png',await blobOf(cv));say('Image downloaded.')}
+async function chartPdf(bid,tid,pre){const J=window.jspdf&&window.jspdf.jsPDF;if(!J)throw new Error('PDF library failed to load.');
+ const cv=await chartCanvas(bid,tid),doc=new J({orientation:'landscape',unit:'mm',format:'a4'}),pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight(),m=8;
+ let w=pw-m*2,h=w*cv.height/cv.width;if(h>ph-m*2){h=ph-m*2;w=h*cv.width/cv.height}
+ doc.addImage(cv.toDataURL('image/png'),'PNG',(pw-w)/2,m,w,h);saveFile(pre+stamp()+'.pdf',new Blob([doc.output('arraybuffer')],{type:'application/pdf'}))}
+
+/* ---- notice list ---- */
+const nrows=()=>(window.__noticeL||[]).map(o=>[o.x.b,o.x.ar||'',Math.round(o.target),Math.round(o.income),Math.round(o.target-o.income)]);
+const nhead=['Branch','Area',PER.m?'Monthly Target':'Yearly Target','Income','Needs'];
+function noticeXlsx(){if(typeof XLSX=='undefined')throw new Error('Excel library failed to load.');const r=nrows();if(!r.length)throw new Error('No branches are below target.');
+ const head=['Branch','Area',PER.m?'Monthly Target':'Yearly Target','Income','Needs'],ws=XLSX.utils.aoa_to_sheet([['Notice - Branches Below Target - '+per()],[],head].concat(r));
+ ws['!cols']=[{wch:26},{wch:20},{wch:16},{wch:16},{wch:16}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Below Target');
+ saveFile('branches-below-target-'+stamp()+'.xlsx',new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));say('Excel file downloaded.')}
+function noticePdf(){const J=window.jspdf&&window.jspdf.jsPDF;if(!J)throw new Error('PDF library failed to load.');const r=nrows();if(!r.length)throw new Error('No branches are below target.');
+ const doc=new J({orientation:'portrait',unit:'mm',format:'a4'});if(typeof doc.autoTable!='function')throw new Error('PDF table library failed to load.');
+ const php=v=>'PHP '+v.toLocaleString('en-PH');doc.setFontSize(14);doc.text('Notice - Branches Below Target - '+per(),12,14);doc.setFontSize(9);doc.text(r.length+' branches below target',12,20);
+ doc.autoTable({head:[['Branch','Area',PER.m?'Monthly Target':'Yearly Target','Income','Needs']],body:r.map(x=>[x[0],x[1],php(x[2]),php(x[3]),php(x[4])]),startY:24,theme:'grid',styles:{fontSize:8.5,cellPadding:1.8,overflow:'linebreak'},headStyles:{fillColor:[20,40,75],textColor:255},columnStyles:{2:{halign:'right'},3:{halign:'right'},4:{halign:'right',fontStyle:'bold'}},margin:{left:12,right:12,top:12,bottom:12}});
+ saveFile('branches-below-target-'+stamp()+'.pdf',new Blob([doc.output('arraybuffer')],{type:'application/pdf'}));say('PDF file downloaded.')}
+[['chD','ch','chT','income-graph-','Income graph'],['spchD','spch','spchT','spare-parts-income-graph-','Spare parts income graph']].forEach(([btn,bid,tid,pre,lab])=>{const b=document.getElementById(btn);if(!b)return;
+ b.onclick=()=>ask('Download graph',lab+' for '+document.getElementById(tid).textContent.split(' · ').slice(0,2).join(' · ')+'.',[['🖼 Image (.png)',()=>chartPng(bid,tid,pre)],['📄 PDF (.pdf)',async()=>{await chartPdf(bid,tid,pre);say('PDF file downloaded.')}]])});
+document.getElementById('ntD').onclick=()=>{const n=(window.__noticeL||[]).length;ask('Download notice',n?'All '+n+' branches below target for '+per()+' (not only the 5 shown).':'No branches are below target for '+per()+'.',n?[['📊 Excel (.xlsx)',noticeXlsx],['📄 PDF (.pdf)',noticePdf]]:[])};
 })();
