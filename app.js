@@ -375,7 +375,6 @@ const AO=Object.keys(AREAS),GR={A:'1ST GRADE',B:'2ND GRADE',C:'3RD GRADE'};
 function fillAreas(){const o=AO.map(a=>`<option>${a}</option>`).join('');$('#a1').innerHTML='<option value="">All areas</option>'+o;$('#am').innerHTML='<option value="">All areas</option>'+o;$('#nar').innerHTML=o}
 fillPer();fillSpPer();sp();fillAreas();fillBr();fillAsPer();drawK1();drawCh();rt();drawAsr();drawPartsKpis();drawPartsTargets();fk();rf();fo();mg();anim();
 (function(){const g=document.querySelector('.grp'),t=document.getElementById('grt');const tog=()=>{const shut=g.classList.toggle('shut');t.setAttribute('aria-expanded',String(!shut))};t.addEventListener('click',tog);t.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();tog()}})})();
-(function(){const b=document.querySelector('.nav button[data-s="parts"]'),g=b.closest('.grp2');b.addEventListener('click',()=>{const shut=g.classList.toggle('shut');b.setAttribute('aria-expanded',String(!shut))})})();
 (function(){const t=document.getElementById('grt2'),g=t.closest('.grp');const tog=()=>{const shut=g.classList.toggle('shut');t.setAttribute('aria-expanded',String(!shut))};t.addEventListener('click',tog);t.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();tog()}})})();
 ['ch','spch'].forEach(function(cid){const el=document.getElementById(cid),N='http://www.w3.org/2000/svg',gid='gArea'+cid;
 function enh(){const s=el.querySelector('svg');if(!s||s.dataset.e)return;s.dataset.e=1;
@@ -590,6 +589,7 @@ function ask(title,sub,opts){document.getElementById('dwT').textContent=title;do
  opts.concat([['Close',null]]).forEach(([lab,fn])=>{const x=document.createElement('button');x.type='button';x.className=fn?'btn':'tbtn';x.textContent=lab;x.onclick=async()=>{if(!fn){dlg.close();return}x.disabled=true;try{await fn();dlg.close()}catch(e){console.error(e);say('Could not create the file: '+(e&&e.message||e))}x.disabled=false};b.appendChild(x)});
  dlg.showModal()}
 
+window.__dw={ask,saveFile,say,per,stamp};
 /* ---- graph -> canvas ---- */
 function svgToImg(svg,W){return new Promise((res,rej)=>{
  const vb=svg.viewBox&&svg.viewBox.baseVal,rect=svg.getBoundingClientRect(),vw=(vb&&vb.width)||rect.width,vh=(vb&&vb.height)||rect.height,H=Math.round(W*vh/vw),c=svg.cloneNode(true);
@@ -644,4 +644,31 @@ function noticePdf(){const J=window.jspdf&&window.jspdf.jsPDF;if(!J)throw new Er
 [['chD','ch','chT','income-graph-','Income graph'],['spchD','spch','spchT','spare-parts-income-graph-','Spare parts income graph']].forEach(([btn,bid,tid,pre,lab])=>{const b=document.getElementById(btn);if(!b)return;
  b.onclick=()=>ask('Download graph',lab+' for '+document.getElementById(tid).textContent.split(' · ').slice(0,2).join(' · ')+'.',[['🖼 Image (.png)',()=>chartPng(bid,tid,pre)],['📄 PDF (.pdf)',async()=>{await chartPdf(bid,tid,pre);say('PDF file downloaded.')}]])});
 document.getElementById('ntD').onclick=()=>{const n=(window.__noticeL||[]).length;ask('Download notice',n?'All '+n+' branches below target for '+per()+' (not only the 5 shown).':'No branches are below target for '+per()+'.',n?[['📊 Excel (.xlsx)',noticeXlsx],['📄 PDF (.pdf)',noticePdf]]:[])};
+})();
+
+/* ===== After Sales Report: ONE download button for KPI Overview + 3S Parts Sales + Service Revenue + Multi-Brand Oil Sales ===== */
+(function(){
+const D=window.__dw,btn=document.getElementById('asAllD');if(!D||!btn)return;
+const SECS=[['KPI Overview','Key Performance Indicator Overview','asTb'],['3S Parts Sales','3S Parts Sales','asb-parts'],['Service Revenue','Service Revenue','asb-svc'],['Multi-Brand Oil Sales','Multi-Brand Oil Sales','asb-oil']];
+const clean=s=>String(s==null?'':s).replace(/\s+/g,' ').trim();
+const cellText=c=>{const f=c.querySelector('input,select');if(f)return clean(f.tagName=='SELECT'?(f.selectedOptions[0]||{}).text:f.value);return clean(c.textContent)};
+function grab(id){
+ const body=document.getElementById(id);if(!body)return{head:[],rows:[]};const table=body.closest('table');
+ const hr=[...table.querySelectorAll('thead tr')].pop(),head=[...hr.children].map(th=>clean((th.childNodes[0]||{}).textContent||th.textContent));
+ const rows=[];table.querySelectorAll('tbody tr, tfoot tr').forEach(tr=>{const c=[...tr.children].map(cellText);if(!c.some(Boolean))return;while(c.length<head.length)c.push('');rows.push(c.slice(0,Math.max(head.length,1)))});
+ return{head,rows}}
+const num=v=>{const s=String(v).replace(/\s/g,'');if(/^₱?-?[\d,]+(\.\d+)?$/.test(s)){const n=+s.replace(/[₱,]/g,'');if(!isNaN(n))return n}return v};
+const all=()=>SECS.map(([sheet,title,id])=>Object.assign({sheet,title},grab(id)));
+function xlsx(){if(typeof XLSX=='undefined')throw new Error('Excel library failed to load.');
+ const wb=XLSX.utils.book_new();
+ all().forEach(s=>{const ws=XLSX.utils.aoa_to_sheet([[s.title+' - '+D.per()],[],s.head].concat(s.rows.map(r=>r.map(num))));ws['!cols']=s.head.map((h,i)=>({wch:i?Math.max(14,clean(h).length+2):28}));XLSX.utils.book_append_sheet(wb,ws,s.sheet.slice(0,31))});
+ D.saveFile('after-sales-report-'+D.stamp()+'.xlsx',new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));D.say('Excel file downloaded (4 sheets).')}
+function pdf(){const J=window.jspdf&&window.jspdf.jsPDF;if(!J)throw new Error('PDF library failed to load.');
+ const doc=new J({orientation:'landscape',unit:'mm',format:'a4'});if(typeof doc.autoTable!='function')throw new Error('PDF table library failed to load.');
+ all().forEach((s,i)=>{if(i)doc.addPage();doc.setFontSize(14);doc.text('After Sales Report - '+s.title+' - '+D.per(),10,12);
+  const last=s.rows.length-1,tot=s.rows.length>1&&/^total/i.test(s.rows[last][0]);
+  doc.autoTable({head:[s.head],body:s.rows.length?s.rows:[['No data']],startY:17,theme:'grid',styles:{fontSize:8,cellPadding:1.6,halign:'center',valign:'middle',overflow:'linebreak'},headStyles:{fillColor:[20,40,75],textColor:255,halign:'center'},columnStyles:{0:{halign:'left',fontStyle:'bold'}},margin:{left:10,right:10,top:12,bottom:10},
+   didParseCell:d=>{if(d.section=='body'&&tot&&d.row.index==last){d.cell.styles.fontStyle='bold';d.cell.styles.fillColor=[230,235,244]}}})});
+ D.saveFile('after-sales-report-'+D.stamp()+'.pdf',new Blob([doc.output('arraybuffer')],{type:'application/pdf'}));D.say('PDF file downloaded (4 sections).')}
+btn.onclick=()=>D.ask('Download After Sales Report','Key Performance Indicator Overview, 3S Parts Sales, Service Revenue and Multi-Brand Oil Sales for '+D.per()+' in one file.',[['📊 Excel (.xlsx)',xlsx],['📄 PDF (.pdf)',pdf]]);
 })();
