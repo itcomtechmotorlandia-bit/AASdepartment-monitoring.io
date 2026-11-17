@@ -198,7 +198,7 @@ $('#hz').onclick=()=>$('.app').classList.toggle('open');
 document.querySelector('main').addEventListener('click',()=>$('.app').classList.remove('open'));
 $('#dt').textContent=new Date().toLocaleDateString('en-PH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 $('#navToggle').onclick=e=>{const hidden=$('.app').classList.toggle('nav-hidden'),b=e.currentTarget;b.setAttribute('aria-label',hidden?'Show sidebar':'Hide sidebar');b.title=hidden?'Show sidebar':'Hide sidebar'};$('#th').onclick=()=>{const r=document.documentElement,d=r.dataset.theme!=='light';r.dataset.theme=d?'light':'dark'};
-const T={svc:'Service Mechanic Performance',asr:'After Sales Report',parts:'Spare Parts Monitoring',fac:'Admin · Branch Facility Concerns',mgr:'Manage Branches',spbr:'Spare Parts Branches','ad-memo':'Memo Preview','ad-unif':'Uniform Monitoring','ad-reno':'Branch Renovation Report','ad-trav':'Travel Expense','ad-cont':'Contract Preview'};
+const T={ov:'Overview',svc:'Service Mechanic Performance',asr:'After Sales Report',parts:'Spare Parts Monitoring',fac:'Admin · Branch Facility Concerns',mgr:'Manage Branches',spbr:'Spare Parts Branches','ad-memo':'Memo Preview','ad-unif':'Uniform Monitoring','ad-reno':'Branch Renovation Report','ad-trav':'Travel Expense','ad-cont':'Contract Preview'};
 document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.nav button,.sec').forEach(e=>e.classList.remove('on'));b.classList.add('on');$('#'+b.dataset.s).classList.add('on');$('#ttl').textContent=T[b.dataset.s];if(b.dataset.s=='asr')drawAsr();anim()});
 // kpi
 function kpi(el,a){el.innerHTML=a.map(([l,v,d,f,c])=>`<div class="card kpi"><div class="l">${l}</div><div class="v" data-v="${v}" data-f="${f||''}">0</div><div class="d ${c||''}">${d}</div></div>`).join('')}
@@ -687,4 +687,59 @@ function pdf(){const J=window.jspdf&&window.jspdf.jsPDF;if(!J)throw new Error('P
    didParseCell:d=>{if(d.section=='body'&&tot&&d.row.index==last){d.cell.styles.fontStyle='bold';d.cell.styles.fillColor=[230,235,244]}}})});
  D.saveFile('after-sales-report-'+D.stamp()+'.pdf',new Blob([doc.output('arraybuffer')],{type:'application/pdf'}));D.say('PDF file downloaded (4 sections).')}
 btn.onclick=()=>D.ask('Download After Sales Report','Key Performance Indicator Overview, 3S Parts Sales, Service Revenue and Multi-Brand Oil Sales for '+D.per()+' in one file.',[['📊 Excel (.xlsx)',xlsx],['📄 PDF (.pdf)',pdf]]);
+})();
+
+/* ===== Overview dashboard ===== */
+(function(){
+const LS=k=>{try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}};
+const COL=['var(--ac)','var(--ac2)','var(--wn)','var(--ok)','#6b7fd7','#9a6bd7','#d76b9a'];
+const bar=(l,v,t,r)=>{const p=t?Math.min(100,v/t*100):0;return'<div style="margin:9px 0"><div style="display:flex;justify-content:space-between;gap:10px;font-size:13px"><b style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(l)+'</b><span class="sub">'+(r||(t?p.toFixed(1)+'%':'—'))+'</span></div><div class="bar" style="margin-top:4px"><i data-w="'+p+'"></i></div></div>'};
+const none=m=>'<p class="sub">'+m+'</p>';
+const head=(t,go)=>'<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px"><h2 style="margin:0;font-size:16px">'+t+'</h2><button type="button" class="tbtn ovgo" style="white-space:nowrap;flex:none" data-go="'+go+'">Open →</button></div>';
+const stat=(l,v)=>'<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--bd);font-size:13px"><span class="sub">'+l+'</span><b>'+v+'</b></div>';
+function donut(items,tot,center){let a=0;const g=items.map((o,i)=>{const s=a;a+=o.n/tot*100;return COL[i%COL.length]+' '+s+'% '+a+'%'}).join(',');
+return'<div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><div style="width:120px;height:120px;border-radius:50%;background:conic-gradient('+g+');display:flex;align-items:center;justify-content:center;flex:none"><div style="width:74px;height:74px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;text-align:center">'+center+'</div></div><div style="flex:1;min-width:150px">'+items.map((o,i)=>'<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin:4px 0"><i style="width:10px;height:10px;border-radius:3px;background:'+COL[i%COL.length]+';flex:none"></i><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(o.l)+'</span><b>'+o.n+'</b></div>').join('')+'</div></div>'}
+function draw(){
+ const el=$('#ovb');if(!el)return;
+ const per=PER.m?MN[PER.m-1]+' '+PER.y:'Year '+PER.y;
+ /* mechanic */
+ const mT=B.reduce((s,x)=>s+TG(x),0),mA=B.reduce((s,x)=>s+x.wi.reduce((a,w)=>a+w,0),0),mech=B.map(x=>({b:x.b,t:TG(x),a:x.wi.reduce((s,w)=>s+w,0)})).filter(o=>o.t>0).sort((a,b)=>b.a/b.t-a.a/a.t);
+ const below=mech.filter(o=>o.a<o.t).length;
+ /* spare parts */
+ const sp=SPB.map(b=>({b,t:spTarget(b),a:spWeeks(b).reduce((s,v)=>s+v,0)})),spT=sp.reduce((s,o)=>s+o.t,0),spA=sp.reduce((s,o)=>s+o.a,0);
+ /* after sales */
+ const AS3=['parts','svc','oil'].map(k=>[k,asTot(k,asList(k))]),asN={parts:'Parts Sales (3S)',svc:'Service Revenue',oil:'MB Oil Sales'};
+ /* facility */
+ const D=LS('facilityConcernsByMonth')||{},fc=[].concat(...Object.values(D).filter(Array.isArray)),fs={};fc.forEach(r=>{const s=r.s||'Pending';fs[s]=(fs[s]||0)+1});
+ const fcOpen=(fs['Pending']||0)+(fs['Not Assessed']||0)+(fs['Not Done']||0)+(fs['Assessed']||0);
+ /* memo */
+ const M=LS('memoPreview');const memo=Array.isArray(M)?M:[],mk=new Date().toISOString().slice(0,7),memoM=memo.filter(r=>(r.d||'').slice(0,7)==mk).length;
+ /* uniform */
+ const U=LS('uniformMonitoring');const un=Array.isArray(U)?U:[],uv={},ub={};un.forEach(r=>{const v=r.v||'Other';uv[v]=(uv[v]||0)+1;ub[r.b]=(ub[r.b]||0)+1});
+ const uvl=Object.entries(uv).map(([l,n])=>({l,n})).sort((a,b)=>b.n-a.n),ubl=Object.entries(ub).sort((a,b)=>b[1]-a[1]);
+ /* travel */
+ const X=LS('travelExpense');const tr=Array.isArray(X)?X:[],trTot=tr.reduce((s,r)=>s+(+r.t||0),0),trM=tr.filter(r=>(r.d||'').slice(0,7)==mk).reduce((s,r)=>s+(+r.t||0),0);
+ /* contracts */
+ const C=LS('contractPreviewByBranch')||{},cb=Object.entries(C).filter(([,v])=>v&&v.x),td=new Date();td.setHours(0,0,0,0);const m6=new Date(td),y1=new Date(td);m6.setMonth(m6.getMonth()+6);y1.setFullYear(y1.getFullYear()+1);
+ const cc={Expired:0,'Within 6 months':0,'Within 1 year':0,'Over 1 year':0};cb.forEach(([,v])=>{const e=new Date(v.x+'T00:00:00');cc[e<=td?'Expired':e<=m6?'Within 6 months':e<=y1?'Within 1 year':'Over 1 year']++});
+ const cRent=Object.values(C).reduce((s,v)=>s+(+(v&&v.m)||0),0);
+ const kp=[['Mechanic Income',mA,mT?(mA/mT*100).toFixed(1)+'% of '+peso(mT)+' target':'No target set','p'],['Spare Parts Income',spA,spT?(spA/spT*100).toFixed(1)+'% of '+peso(spT)+' target':'No target set','p'],['Open Facility Concerns',fcOpen,fc.length+' total logged'],['Uniform Violations',un.length,ubl[0]?'Most: '+ubl[0][0]:'None logged'],['Travel Spend',trTot,peso(trM)+' this month','p']];
+ el.innerHTML='<div class="grid k4" id="ovk"></div><div class="grid two">'
+ +'<div class="card">'+head('🔧 Mechanic Performance','svc')+'<div class="sub">'+per+' · '+B.length+' branches · '+below+' below target</div>'+(mech.length?mech.slice(0,5).map(o=>bar(o.b,o.a,o.t)).join('')+'<div class="sub" style="margin-top:6px">Top 5 by achievement</div>':none('No branch targets yet.'))+'</div>'
+ +'<div class="card">'+head('📦 Spare Parts','parts')+'<div class="sub">'+per+' · '+SPB.length+' shops</div>'+(spT||spA?sp.map(o=>bar(o.b,o.a,o.t)).join(''):none('No spare parts data yet.'))+'</div>'
+ +'<div class="card">'+head('📑 After Sales Report','asr')+'<div class="sub">'+per+'</div>'+AS3.map(([k,o])=>bar(asN[k],o.a,o.t,o.t?peso(o.a)+' / '+peso(o.t):'—')).join('')+'</div>'
+ +'<div class="card">'+head('🏢 Facility Concerns','fac')+(fc.length?donut(Object.entries(fs).map(([l,n])=>({l,n})),fc.length,fc.length):none('No concerns logged.'))+'</div>'
+ +'<div class="card">'+head('👕 Uniform Monitoring','ad-unif')+(un.length?donut(uvl,un.length,'<div>'+un.length+'<div class="sub" style="font-weight:400;font-size:10px">violations</div></div>')+'<div class="sub" style="margin-top:8px">Top branch: <b>'+esc(ubl[0][0])+'</b> ('+ubl[0][1]+')</div>':none('No violations logged.'))+'</div>'
+ +'<div class="card">'+head('📄 Contracts','ad-cont')+(Object.keys(C).length?stat('Branches with contracts',Object.keys(C).length)+stat('Total monthly rent',peso(cRent))+Object.entries(cc).map(([l,n])=>stat(l,n)).join(''):none('No contracts yet.'))+'</div>'
+ +'<div class="card">'+head('✈️ Travel Expense','ad-trav')+stat('Records',tr.length)+stat('Total spend',peso(trTot))+stat('This month',peso(trM))+'</div>'
+ +'<div class="card">'+head('📝 Memo Preview','ad-memo')+stat('Memos',memo.length)+stat('This month',memoM)+(memo[0]?stat('Latest',esc((memo[0].m||'').slice(0,40))):'')+'</div></div>';
+ kpi($('#ovk'),kp);anim();
+}
+window.__ovDraw=draw;
+document.addEventListener('click',e=>{const b=e.target.closest('.ovgo');if(b){const n=document.querySelector('.nav button[data-s="'+b.dataset.go+'"]');if(n)n.click()}});
+document.querySelectorAll('.nav button[data-s]').forEach(b=>b.addEventListener('click',()=>{const g=b.closest('.grp');if(g&&g.classList.contains('shut')){g.classList.remove('shut');const t=g.querySelector('.grt');if(t)t.setAttribute('aria-expanded','true')}}));
+const nb=document.querySelector('.nav button[data-s="ov"]');if(nb)nb.addEventListener('click',draw);
+const ra=refreshAll;refreshAll=function(){ra.apply(this,arguments);draw()};
+setInterval(()=>{const s=$('#ov');if(s&&s.classList.contains('on')&&!document.hidden)draw()},4000);
+$('#ttl').textContent='Overview';draw();
 })();
