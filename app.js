@@ -699,6 +699,7 @@ const head=(t,go)=>'<div style="display:flex;justify-content:space-between;align
 const stat=(l,v)=>'<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--bd);font-size:13px"><span class="sub">'+l+'</span><b>'+v+'</b></div>';
 function donut(items,tot,center){let a=0;const g=items.map((o,i)=>{const s=a;a+=o.n/tot*100;return COL[i%COL.length]+' '+s+'% '+a+'%'}).join(',');
 return'<div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><div style="width:120px;height:120px;border-radius:50%;background:conic-gradient('+g+');display:flex;align-items:center;justify-content:center;flex:none"><div style="width:74px;height:74px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;text-align:center">'+center+'</div></div><div style="flex:1;min-width:150px">'+items.map((o,i)=>'<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin:4px 0"><i style="width:10px;height:10px;border-radius:3px;background:'+COL[i%COL.length]+';flex:none"></i><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(o.l)+'</span><b>'+o.n+'</b></div>').join('')+'</div></div>'}
+let last='';
 function draw(){
  const el=$('#ovb');if(!el)return;
  const per=PER.m?MN[PER.m-1]+' '+PER.y:'Year '+PER.y;
@@ -724,7 +725,7 @@ function draw(){
  const cc={Expired:0,'Within 6 months':0,'Within 1 year':0,'Over 1 year':0};cb.forEach(([,v])=>{const e=new Date(v.x+'T00:00:00');cc[e<=td?'Expired':e<=m6?'Within 6 months':e<=y1?'Within 1 year':'Over 1 year']++});
  const cRent=Object.values(C).reduce((s,v)=>s+(+(v&&v.m)||0),0);
  const kp=[['Mechanic Income',mA,mT?(mA/mT*100).toFixed(1)+'% of '+peso(mT)+' target':'No target set','p'],['Spare Parts Income',spA,spT?(spA/spT*100).toFixed(1)+'% of '+peso(spT)+' target':'No target set','p'],['Open Facility Concerns',fcOpen,fc.length+' total logged'],['Uniform Violations',un.length,ubl[0]?'Most: '+ubl[0][0]:'None logged'],['Travel Spend',trTot,peso(trM)+' this month','p']];
- el.innerHTML='<div class="grid k4" id="ovk"></div><div class="grid two">'
+ const H='<div class="grid k4" id="ovk"></div><div class="grid two">'
  +'<div class="card">'+head('🔧 Mechanic Performance','svc')+'<div class="sub">'+per+' · '+B.length+' branches · '+below+' below target</div>'+(mech.length?mech.slice(0,5).map(o=>bar(o.b,o.a,o.t)).join('')+'<div class="sub" style="margin-top:6px">Top 5 by achievement</div>':none('No branch targets yet.'))+'</div>'
  +'<div class="card">'+head('📦 Spare Parts','parts')+'<div class="sub">'+per+' · '+SPB.length+' shops</div>'+(spT||spA?sp.map(o=>bar(o.b,o.a,o.t)).join(''):none('No spare parts data yet.'))+'</div>'
  +'<div class="card">'+head('📑 After Sales Report','asr')+'<div class="sub">'+per+'</div>'+AS3.map(([k,o])=>bar(asN[k],o.a,o.t,o.t?peso(o.a)+' / '+peso(o.t):'—')).join('')+'</div>'
@@ -733,7 +734,7 @@ function draw(){
  +'<div class="card">'+head('📄 Contracts','ad-cont')+(Object.keys(C).length?stat('Branches with contracts',Object.keys(C).length)+stat('Total monthly rent',peso(cRent))+Object.entries(cc).map(([l,n])=>stat(l,n)).join(''):none('No contracts yet.'))+'</div>'
  +'<div class="card">'+head('✈️ Travel Expense','ad-trav')+stat('Records',tr.length)+stat('Total spend',peso(trTot))+stat('This month',peso(trM))+'</div>'
  +'<div class="card">'+head('📝 Memo Preview','ad-memo')+stat('Memos',memo.length)+stat('This month',memoM)+(memo[0]?stat('Latest',esc((memo[0].m||'').slice(0,40))):'')+'</div></div>';
- kpi($('#ovk'),kp);anim();
+ const key=H+JSON.stringify(kp);if(key===last)return;last=key;el.innerHTML=H;kpi($('#ovk'),kp);anim();
 }
 window.__ovDraw=draw;
 document.addEventListener('click',e=>{const b=e.target.closest('.ovgo');if(b){const n=document.querySelector('.nav button[data-s="'+b.dataset.go+'"]');if(n)n.click()}});
