@@ -748,3 +748,53 @@ const ra=refreshAll;refreshAll=function(){ra.apply(this,arguments);draw()};
 setInterval(()=>{const s=$('#ov');if(s&&s.classList.contains('on')&&!document.hidden)draw()},4000);
 $('#ttl').textContent='Overview';draw();
 })();
+
+/* ===== Two-way Google Sheet link for Mechanic Performance ===== */
+(function(){
+const box=document.querySelector('#bpCard .bp-actions');if(!box)return;
+const LSG=k=>{try{return localStorage.getItem(k)||''}catch(e){return''}},LSS=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
+const mk=(id,t)=>{const b=document.createElement('button');b.type='button';b.className='tbtn';b.id=id;b.textContent=t;b.style.whiteSpace='nowrap';return b};
+const bS=mk('gsSend','📤 Send to Google Sheet'),bG=mk('gsGet','📥 Get from Google Sheet'),bO=mk('gsOpen','📄 Open Sheet');
+bO.style.display=LSG('sfd_sheet_open')?'':'none';box.append(bS,bG,bO);
+const tab=()=>'Mechanic '+pk(PER.m),hk=()=>'sfd_sheet_hash_'+tab();
+function url(){let u=(typeof SFD_SHEET_URL!='undefined'&&SFD_SHEET_URL)||LSG('sfd_sheet_url');
+ if(!u){u=(prompt('Paste the Google Apps Script Web app URL (it ends with /exec):')||'').trim();if(!u)return'';if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(u)){imsg('That does not look like a Web app URL (it must end with /exec).');return''}LSS('sfd_sheet_url',u)}return u}
+async function call(body){const u=url();if(!u)throw new Error('Google Sheet is not connected yet.');
+ const au=typeof sfdAuth!='undefined'&&sfdAuth&&sfdAuth.currentUser;if(!au)throw new Error('Please log in again.');
+ const token=await au.getIdToken();const r=await fetch(u,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({token,tab:tab()},body))});
+ const j=await r.json();if(j.url){LSS('sfd_sheet_open',j.url);bO.style.display=''}return j}
+const num=v=>{const n=parseFloat(String(v==null?'':v).replace(/[₱,\s]/g,''));return isFinite(n)?Math.max(0,n):0};
+const grade=v=>{const u=String(v||'').trim().toUpperCase();if(['A','B','C'].includes(u))return u;return Object.keys(GR).find(k=>GR[k]==u)||''};
+const HEAD=['Branch','Area','No. of Mechanics','Classification','Monthly Target'];for(let k=1;k<=5;k++)HEAD.push('Week '+k+' Income','Week '+k+' Service Repaired');
+const needMonth=()=>{if(PER.m)return true;imsg('Choose a month first (not "Whole year"). The sheet has one tab per month.');return false};
+bS.onclick=async()=>{if(!needMonth())return;bS.disabled=bG.disabled=true;imsg('Sending '+MN[PER.m-1]+' '+PER.y+' to Google Sheet…');
+ try{const rows=B.map(x=>{const r=[x.b,x.ar,x.m,GR[x.c]||'',x.t];for(let k=0;k<5;k++)r.push(x.wi[k]||0,(x.sw&&x.sw[k])||0);return r});
+  const au=sfdAuth.currentUser,base={action:'put',title:'Mechanic Performance - '+MN[PER.m-1]+' '+PER.y,by:(window.SFD_USER&&SFD_USER.name)||(au&&au.email),head:HEAD,rows};
+  let j=await call(Object.assign({baseHash:LSG(hk())},base));
+  if(j.conflict){if(!confirm('The Google Sheet was edited since you last synced.\n\nOK = replace the sheet with the website data (sheet edits are lost).\nCancel = keep the sheet; then press "Get from Google Sheet" first.')){imsg('Not sent. Press "Get from Google Sheet" to bring the sheet edits in first.');bS.disabled=bG.disabled=false;return}
+   j=await call(Object.assign({force:true},base))}
+  if(!j.ok)throw new Error(j.error||'The sheet did not accept the data.');
+  LSS(hk(),j.hash||'');imsg('Sent to Google Sheet: tab "'+j.tab+'" ('+j.rows+' branches).')}
+ catch(e){imsg('Could not send: '+(e&&e.message||e))}
+ bS.disabled=bG.disabled=false};
+bG.onclick=async()=>{if(!needMonth())return;bS.disabled=bG.disabled=true;imsg('Reading '+tab()+' from Google Sheet…');
+ try{const j=await call({action:'get'});if(!j.ok)throw new Error(j.error||'Could not read the sheet.');
+  if(!j.found){imsg('The sheet has no tab "'+tab()+'" yet. Press "Send to Google Sheet" first.');bS.disabled=bG.disabled=false;return}
+  if(!j.head||String(j.head[0]).trim()!='Branch')throw new Error('The sheet header was changed. Row 4 must start with "Branch".');
+  const k=pk(PER.m),skip=[],ch=[],add=[];
+  j.rows.forEach(r=>{const name=String(r[0]).trim().toUpperCase(),ar=String(r[1]||'').trim().toUpperCase(),m=Math.round(num(r[2])),c=grade(r[3]),t=num(r[4]);
+   const wi=[],sw=[];for(let i=0;i<5;i++){wi.push(num(r[5+i*2]));sw.push(Math.round(num(r[6+i*2])))}
+   const x=B.find(q=>q.b==name),a2=AO.includes(ar)?ar:'';
+   if(!x){if(a2)add.push({name,ar:a2,m,c:c||'C',t,wi,sw});else skip.push(name);return}
+   const nc=c||x.c,na=a2||x.ar;
+   if(x.m!=m||x.t!=t||x.c!=nc||x.ar!=na||wi.some((v,i)=>v!=(x.wi[i]||0))||sw.some((v,i)=>v!=((x.sw&&x.sw[i])||0)))ch.push({x,m,t,c:nc,ar:na,wi,sw})});
+  if(!ch.length&&!add.length){LSS(hk(),j.hash||'');imsg('Already up to date with the Google Sheet.'+(skip.length?' Skipped (unknown area): '+skip.join(', '):''));bS.disabled=bG.disabled=false;return}
+  if(!confirm('Update '+MN[PER.m-1]+' '+PER.y+' from the Google Sheet?\n\n'+ch.length+' branch(es) will change'+(add.length?', '+add.length+' new branch(es) will be added':'')+'.\nThe website values for those branches will be replaced.')){imsg('Cancelled. Nothing was changed.');bS.disabled=bG.disabled=false;return}
+  ch.forEach(o=>{const x=o.x;x.m=o.m;x.t=o.t;x.c=o.c;x.ar=o.ar;x.d=x.t/D;o.wi.forEach((v,i)=>x.wi[i]=v);if(!x.sw)x.sw=[0,0,0,0,0];o.sw.forEach((v,i)=>x.sw[i]=v)});
+  add.forEach(o=>{const x={b:o.name,m:o.m,t:o.t,a:0,ar:o.ar,c:o.c,spt:0};rc(x);B.push(x);sx(x);x.mo[k]={m:o.m,t:o.t,c:o.c};x.m=o.m;x.t=o.t;x.c=o.c;x.d=x.t/D;o.wi.forEach((v,i)=>x.wi[i]=v);o.sw.forEach((v,i)=>x.sw[i]=v)});
+  refreshAll();LSS(hk(),j.hash||'');
+  imsg('Updated from Google Sheet: '+ch.length+' changed'+(add.length?', '+add.length+' added':'')+(skip.length?'. Skipped (unknown area): '+skip.join(', '):'')+'.')}
+ catch(e){imsg('Could not read: '+(e&&e.message||e))}
+ bS.disabled=bG.disabled=false};
+bO.onclick=()=>{const u=LSG('sfd_sheet_open');if(u)window.open(u,'_blank','noopener')};
+})();
