@@ -753,6 +753,7 @@ $('#ttl').textContent='Overview';draw();
 (function(){
 const box=document.querySelector('#bpCard .bp-actions'),imEl=document.querySelector('#bpCard #im');if(!box||!imEl)return;
 const LSG=k=>{try{return localStorage.getItem(k)||''}catch(e){return''}},LSS=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
+{const o=LSG('sfd_sheet_url');if(o&&!LSG('sfdSheetUrl'))LSS('sfdSheetUrl',o)}   /* the link is now shared with every computer through Firebase */
 const mk=(id,t)=>{const b=document.createElement('button');b.type='button';b.className='tbtn';b.id=id;b.textContent=t;b.style.whiteSpace='nowrap';return b};
 const bN=mk('gsNow','🔄 Sync now'),bA=mk('gsAuto',''),bO=mk('gsOpen','📄 Open Sheet'),st=document.createElement('span');
 st.id='gsSt';st.className='sub';st.style.cssText='width:100%;text-align:right';
@@ -760,8 +761,8 @@ bO.style.display=LSG('sfd_sheet_open')?'':'none';box.append(bN,bA,bO,st);
 const auto=()=>LSG('sfd_sheet_auto')=='1',paint=()=>{bA.textContent='Auto-sync: '+(auto()?'ON':'OFF');bA.style.fontWeight=auto()?'700':'';bA.style.color=auto()?'var(--ok)':''};paint();
 const say=t=>{st.textContent=t};
 const tab=()=>'Mechanic '+pk(PER.m);
-function url(ask){let u=(typeof SFD_SHEET_URL!='undefined'&&SFD_SHEET_URL)||LSG('sfd_sheet_url');
- if(!u&&ask){u=(prompt('Paste the Google Apps Script Web app URL (it ends with /exec):')||'').trim();if(!u)return'';if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(u)){say('That does not look like a Web app URL (it must end with /exec).');return''}LSS('sfd_sheet_url',u)}return u}
+function url(ask){let u=(typeof SFD_SHEET_URL!='undefined'&&SFD_SHEET_URL)||LSG('sfdSheetUrl');
+ if(!u&&ask){u=(prompt('Paste the Google Apps Script Web app URL (it ends with /exec):')||'').trim();if(!u)return'';if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(u)){say('That does not look like a Web app URL (it must end with /exec).');return''}LSS('sfdSheetUrl',u)}return u}
 async function call(body){const u=url(false);if(!u)throw new Error('Google Sheet is not connected yet.');
  const au=typeof sfdAuth!='undefined'&&sfdAuth&&sfdAuth.currentUser;if(!au)throw new Error('Please log in again.');
  const token=await au.getIdToken();const r=await fetch(u,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({token,tab:tab()},body))});
