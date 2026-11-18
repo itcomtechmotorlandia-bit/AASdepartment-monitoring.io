@@ -775,11 +775,18 @@ const fromSheet=r=>{const n=[String(r[0]).trim().toUpperCase(),AO.includes(Strin
 const mer=(l,r,s)=>r===undefined?l:l===undefined?r:l===s?r:r===s?l:l;   /* site changed -> site wins; only the sheet changed -> sheet wins */
 const sk=()=>'sfd_sheet_snap_'+tab(),loadSnap=()=>{try{return JSON.parse(LSG(sk()))}catch(e){return null}};
 let busy=false,again=false,timer=null,applying=false;
+async function yearPush(manual){
+ const y=PER.y,head=['Branch','Area','Yearly Target'].concat(MN.map(m=>m+' Income'),['Total Income','Performance (%)']);
+ const rows=B.map(x=>{let tg=0,tot=0;const inc=[];for(let m=1;m<=12;m++){const q=x.mo&&x.mo[y+'-'+String(m).padStart(2,'0')];tg+=q?+q.t||0:+(x.dt??0);const w=(x.wp&&x.wp[y+'-'+String(m).padStart(2,'0')])||[],s=w.reduce((s,v)=>s+(+v||0),0);inc.push(s);tot+=s}
+  return[x.b,x.ar,tg].concat(inc,[tot,tg?+(tot/tg*100).toFixed(1):0])});
+ const au=sfdAuth.currentUser,p=await call({action:'put',tab:'Mechanic '+y+' (Year)',readonly:true,force:true,title:'Mechanic Performance - Year '+y+' (summary)',by:(window.SFD_USER&&SFD_USER.name)||(au&&au.email),head,rows});
+ if(!p.ok)throw new Error(p.error||'The sheet did not accept the yearly summary.');return p}
+
 function typing(){const e=document.activeElement;return e&&/^(INPUT|SELECT|TEXTAREA)$/.test(e.tagName)&&(e.closest('#bpCard')||e.closest('#mgr'))}
 async function cycle(manual){
  if(busy){again=true;return}
- if(!PER.m){if(manual)say('Choose a month first (not "Whole year"). The sheet has one tab per month.');return}
  if(!url(manual)){if(manual)say('Google Sheet is not connected yet.');return}
+ if(!PER.m){busy=true;bN.disabled=true;say('Updating the yearly summary…');try{await yearPush();say('Yearly summary for '+PER.y+' sent '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+'. Pick a month to sync that month.')}catch(e){say('Sync failed: '+(e&&e.message||e))}finally{busy=false;bN.disabled=false}return}
  if(typing()&&!manual){schedule(3000);return}
  busy=true;const t0=tab(),per0=PER.y+'-'+PER.m;bN.disabled=true;say('Syncing '+MN[PER.m-1]+' '+PER.y+'…');
  try{
@@ -811,6 +818,7 @@ async function cycle(manual){
   if(need){const au=sfdAuth.currentUser,p=await call({action:'put',baseHash:j.found?j.hash:'',title:'Mechanic Performance - '+MN[PER.m-1]+' '+PER.y,by:(window.SFD_USER&&SFD_USER.name)||(au&&au.email),head:HEAD,rows:out});
    if(p.conflict){say('Sheet changed while syncing. Trying again…');schedule(2000);return}
    if(!p.ok)throw new Error(p.error||'The sheet did not accept the data.');hash=p.hash;pushed=true}
+  if(nc||na||pushed||manual){try{await yearPush()}catch(e){}}
   LSS(sk(),JSON.stringify(Object.fromEntries(out.filter(m=>!skip.includes(m[0])).map(m=>[m[0],m]))));
   const tm=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
   say('Synced '+tm+(nc||na?' · from sheet: '+nc+' changed'+(na?', '+na+' added':''):'')+(pushed?' · sheet updated':'')+(skip.length?' · skipped (unknown area): '+skip.join(', '):''))
