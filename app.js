@@ -749,52 +749,81 @@ setInterval(()=>{const s=$('#ov');if(s&&s.classList.contains('on')&&!document.hi
 $('#ttl').textContent='Overview';draw();
 })();
 
-/* ===== Two-way Google Sheet link for Mechanic Performance ===== */
+/* ===== Automatic two-way Google Sheet sync for Mechanic Performance ===== */
 (function(){
-const box=document.querySelector('#bpCard .bp-actions');if(!box)return;
+const box=document.querySelector('#bpCard .bp-actions'),imEl=document.querySelector('#bpCard #im');if(!box||!imEl)return;
 const LSG=k=>{try{return localStorage.getItem(k)||''}catch(e){return''}},LSS=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
 const mk=(id,t)=>{const b=document.createElement('button');b.type='button';b.className='tbtn';b.id=id;b.textContent=t;b.style.whiteSpace='nowrap';return b};
-const bS=mk('gsSend','📤 Send to Google Sheet'),bG=mk('gsGet','📥 Get from Google Sheet'),bO=mk('gsOpen','📄 Open Sheet');
-bO.style.display=LSG('sfd_sheet_open')?'':'none';box.append(bS,bG,bO);
-const tab=()=>'Mechanic '+pk(PER.m),hk=()=>'sfd_sheet_hash_'+tab();
-function url(){let u=(typeof SFD_SHEET_URL!='undefined'&&SFD_SHEET_URL)||LSG('sfd_sheet_url');
- if(!u){u=(prompt('Paste the Google Apps Script Web app URL (it ends with /exec):')||'').trim();if(!u)return'';if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(u)){imsg('That does not look like a Web app URL (it must end with /exec).');return''}LSS('sfd_sheet_url',u)}return u}
-async function call(body){const u=url();if(!u)throw new Error('Google Sheet is not connected yet.');
+const bN=mk('gsNow','🔄 Sync now'),bA=mk('gsAuto',''),bO=mk('gsOpen','📄 Open Sheet'),st=document.createElement('span');
+st.id='gsSt';st.className='sub';st.style.cssText='width:100%;text-align:right';
+bO.style.display=LSG('sfd_sheet_open')?'':'none';box.append(bN,bA,bO,st);
+const auto=()=>LSG('sfd_sheet_auto')=='1',paint=()=>{bA.textContent='Auto-sync: '+(auto()?'ON':'OFF');bA.style.fontWeight=auto()?'700':'';bA.style.color=auto()?'var(--ok)':''};paint();
+const say=t=>{st.textContent=t};
+const tab=()=>'Mechanic '+pk(PER.m);
+function url(ask){let u=(typeof SFD_SHEET_URL!='undefined'&&SFD_SHEET_URL)||LSG('sfd_sheet_url');
+ if(!u&&ask){u=(prompt('Paste the Google Apps Script Web app URL (it ends with /exec):')||'').trim();if(!u)return'';if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(u)){say('That does not look like a Web app URL (it must end with /exec).');return''}LSS('sfd_sheet_url',u)}return u}
+async function call(body){const u=url(false);if(!u)throw new Error('Google Sheet is not connected yet.');
  const au=typeof sfdAuth!='undefined'&&sfdAuth&&sfdAuth.currentUser;if(!au)throw new Error('Please log in again.');
  const token=await au.getIdToken();const r=await fetch(u,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({token,tab:tab()},body))});
  const j=await r.json();if(j.url){LSS('sfd_sheet_open',j.url);bO.style.display=''}return j}
 const num=v=>{const n=parseFloat(String(v==null?'':v).replace(/[₱,\s]/g,''));return isFinite(n)?Math.max(0,n):0};
 const grade=v=>{const u=String(v||'').trim().toUpperCase();if(['A','B','C'].includes(u))return u;return Object.keys(GR).find(k=>GR[k]==u)||''};
 const HEAD=['Branch','Area','No. of Mechanics','Classification','Monthly Target'];for(let k=1;k<=5;k++)HEAD.push('Week '+k+' Income','Week '+k+' Service Repaired');
-const needMonth=()=>{if(PER.m)return true;imsg('Choose a month first (not "Whole year"). The sheet has one tab per month.');return false};
-bS.onclick=async()=>{if(!needMonth())return;bS.disabled=bG.disabled=true;imsg('Sending '+MN[PER.m-1]+' '+PER.y+' to Google Sheet…');
- try{const rows=B.map(x=>{const r=[x.b,x.ar,x.m,GR[x.c]||'',x.t];for(let k=0;k<5;k++)r.push(x.wi[k]||0,(x.sw&&x.sw[k])||0);return r});
-  const au=sfdAuth.currentUser,base={action:'put',title:'Mechanic Performance - '+MN[PER.m-1]+' '+PER.y,by:(window.SFD_USER&&SFD_USER.name)||(au&&au.email),head:HEAD,rows};
-  let j=await call(Object.assign({baseHash:LSG(hk())},base));
-  if(j.conflict){if(!confirm('The Google Sheet was edited since you last synced.\n\nOK = replace the sheet with the website data (sheet edits are lost).\nCancel = keep the sheet; then press "Get from Google Sheet" first.')){imsg('Not sent. Press "Get from Google Sheet" to bring the sheet edits in first.');bS.disabled=bG.disabled=false;return}
-   j=await call(Object.assign({force:true},base))}
-  if(!j.ok)throw new Error(j.error||'The sheet did not accept the data.');
-  LSS(hk(),j.hash||'');imsg('Sent to Google Sheet: tab "'+j.tab+'" ('+j.rows+' branches).')}
- catch(e){imsg('Could not send: '+(e&&e.message||e))}
- bS.disabled=bG.disabled=false};
-bG.onclick=async()=>{if(!needMonth())return;bS.disabled=bG.disabled=true;imsg('Reading '+tab()+' from Google Sheet…');
- try{const j=await call({action:'get'});if(!j.ok)throw new Error(j.error||'Could not read the sheet.');
-  if(!j.found){imsg('The sheet has no tab "'+tab()+'" yet. Press "Send to Google Sheet" first.');bS.disabled=bG.disabled=false;return}
-  if(!j.head||String(j.head[0]).trim()!='Branch')throw new Error('The sheet header was changed. Row 4 must start with "Branch".');
-  const k=pk(PER.m),skip=[],ch=[],add=[];
-  j.rows.forEach(r=>{const name=String(r[0]).trim().toUpperCase(),ar=String(r[1]||'').trim().toUpperCase(),m=Math.round(num(r[2])),c=grade(r[3]),t=num(r[4]);
-   const wi=[],sw=[];for(let i=0;i<5;i++){wi.push(num(r[5+i*2]));sw.push(Math.round(num(r[6+i*2])))}
-   const x=B.find(q=>q.b==name),a2=AO.includes(ar)?ar:'';
-   if(!x){if(a2)add.push({name,ar:a2,m,c:c||'C',t,wi,sw});else skip.push(name);return}
-   const nc=c||x.c,na=a2||x.ar;
-   if(x.m!=m||x.t!=t||x.c!=nc||x.ar!=na||wi.some((v,i)=>v!=(x.wi[i]||0))||sw.some((v,i)=>v!=((x.sw&&x.sw[i])||0)))ch.push({x,m,t,c:nc,ar:na,wi,sw})});
-  if(!ch.length&&!add.length){LSS(hk(),j.hash||'');imsg('Already up to date with the Google Sheet.'+(skip.length?' Skipped (unknown area): '+skip.join(', '):''));bS.disabled=bG.disabled=false;return}
-  if(!confirm('Update '+MN[PER.m-1]+' '+PER.y+' from the Google Sheet?\n\n'+ch.length+' branch(es) will change'+(add.length?', '+add.length+' new branch(es) will be added':'')+'.\nThe website values for those branches will be replaced.')){imsg('Cancelled. Nothing was changed.');bS.disabled=bG.disabled=false;return}
-  ch.forEach(o=>{const x=o.x;x.m=o.m;x.t=o.t;x.c=o.c;x.ar=o.ar;x.d=x.t/D;o.wi.forEach((v,i)=>x.wi[i]=v);if(!x.sw)x.sw=[0,0,0,0,0];o.sw.forEach((v,i)=>x.sw[i]=v)});
-  add.forEach(o=>{const x={b:o.name,m:o.m,t:o.t,a:0,ar:o.ar,c:o.c,spt:0};rc(x);B.push(x);sx(x);x.mo[k]={m:o.m,t:o.t,c:o.c};x.m=o.m;x.t=o.t;x.c=o.c;x.d=x.t/D;o.wi.forEach((v,i)=>x.wi[i]=v);o.sw.forEach((v,i)=>x.sw[i]=v)});
-  refreshAll();LSS(hk(),j.hash||'');
-  imsg('Updated from Google Sheet: '+ch.length+' changed'+(add.length?', '+add.length+' added':'')+(skip.length?'. Skipped (unknown area): '+skip.join(', '):'')+'.')}
- catch(e){imsg('Could not read: '+(e&&e.message||e))}
- bS.disabled=bG.disabled=false};
+/* a row: [name, area, mechanics, grade label, target, inc1, rep1, ... inc5, rep5]; undefined = "not usable, ignore" */
+const fromSite=x=>{const r=[x.b,x.ar,x.m,GR[x.c]||'',x.t];for(let k=0;k<5;k++)r.push(x.wi[k]||0,(x.sw&&x.sw[k])||0);return r};
+const fromSheet=r=>{const n=[String(r[0]).trim().toUpperCase(),AO.includes(String(r[1]||'').trim().toUpperCase())?String(r[1]).trim().toUpperCase():undefined,Math.round(num(r[2])),grade(r[3])?GR[grade(r[3])]:undefined,num(r[4])];for(let k=0;k<5;k++)n.push(num(r[5+k*2]),Math.round(num(r[6+k*2])));return n};
+const mer=(l,r,s)=>r===undefined?l:l===undefined?r:l===s?r:r===s?l:l;   /* site changed -> site wins; only the sheet changed -> sheet wins */
+const sk=()=>'sfd_sheet_snap_'+tab(),loadSnap=()=>{try{return JSON.parse(LSG(sk()))}catch(e){return null}};
+let busy=false,again=false,timer=null,applying=false;
+function typing(){const e=document.activeElement;return e&&/^(INPUT|SELECT|TEXTAREA)$/.test(e.tagName)&&(e.closest('#bpCard')||e.closest('#mgr'))}
+async function cycle(manual){
+ if(busy){again=true;return}
+ if(!PER.m){if(manual)say('Choose a month first (not "Whole year"). The sheet has one tab per month.');return}
+ if(!url(manual)){if(manual)say('Google Sheet is not connected yet.');return}
+ if(typing()&&!manual){schedule(3000);return}
+ busy=true;const t0=tab(),per0=PER.y+'-'+PER.m;bN.disabled=true;say('Syncing '+MN[PER.m-1]+' '+PER.y+'…');
+ try{
+  const j=await call({action:'get'});if(!j.ok)throw new Error(j.error||'Could not read the sheet.');
+  if(per0!=PER.y+'-'+PER.m)return;
+  const L=new Map(B.map(x=>[x.b,fromSite(x)]));
+  let snap=loadSnap();const R=new Map(),raw=new Map();
+  if(j.found){if(String(j.head[0]).trim()!='Branch')throw new Error('The sheet header was changed. Row 4 must start with "Branch".');j.rows.forEach(r=>{const n=fromSheet(r);if(n[0]){R.set(n[0],n);raw.set(n[0],r)}})}
+  if(!snap){
+   if(j.found&&R.size){const useSheet=confirm('The Google Sheet already has data for '+MN[PER.m-1]+' '+PER.y+'.\n\nOK = start from the Google Sheet values.\nCancel = start from the website values (the sheet will be updated).');
+    snap=useSheet?Object.fromEntries(L):Object.fromEntries(R)}
+   else snap={}}
+  /* three-way merge, cell by cell */
+  const names=[...new Set([...L.keys(),...R.keys()])],M=new Map();
+  names.forEach(n=>{const l=L.get(n),r=R.get(n),s=snap[n];if(l&&!r){M.set(n,l);return}if(r&&!l){M.set(n,r);return}M.set(n,l.map((v,i)=>mer(v,r[i],s?s[i]:undefined)))});
+  /* 1) bring sheet changes into the website */
+  let nc=0,na=0,skip=[];
+  const add=[];M.forEach((m,n)=>{const x=B.find(q=>q.b==n);
+   if(!x){if(m[1]!==undefined&&AO.includes(m[1])){add.push(m);na++}else skip.push(n);return}
+   if(JSON.stringify(fromSite(x))!=JSON.stringify(m.map((v,i)=>v===undefined?fromSite(x)[i]:v)))nc++});
+  if(nc||na){applying=true;const k=pk(PER.m);
+   M.forEach((m,n)=>{const x=B.find(q=>q.b==n);if(!x)return;const c=grade(m[3])||x.c;x.m=m[2];x.t=m[4];x.c=c;if(m[1])x.ar=m[1];x.d=x.t/D;for(let i=0;i<5;i++){x.wi[i]=m[5+i*2];if(!x.sw)x.sw=[0,0,0,0,0];x.sw[i]=m[6+i*2]}});
+   add.forEach(m=>{const x={b:m[0],m:m[2],t:m[4],a:0,ar:m[1],c:grade(m[3])||'C',spt:0};rc(x);B.push(x);sx(x);x.mo[k]={m:x.m,t:x.t,c:x.c};x.d=x.t/D;for(let i=0;i<5;i++){x.wi[i]=m[5+i*2];x.sw[i]=m[6+i*2]}});
+   refreshAll();applying=false}
+  /* 2) push website changes (and anything the sheet is missing) to the sheet */
+  const out=[...M.keys()].map(n=>{const x=B.find(q=>q.b==n);return x?fromSite(x):(raw.get(n)||M.get(n))});
+  const need=!j.found||out.some(m=>{if(skip.includes(m[0]))return false;const r=R.get(m[0]);return !r||JSON.stringify(r)!=JSON.stringify(m)});
+  let hash=j.hash,pushed=false;
+  if(need){const au=sfdAuth.currentUser,p=await call({action:'put',baseHash:j.found?j.hash:'',title:'Mechanic Performance - '+MN[PER.m-1]+' '+PER.y,by:(window.SFD_USER&&SFD_USER.name)||(au&&au.email),head:HEAD,rows:out});
+   if(p.conflict){say('Sheet changed while syncing. Trying again…');schedule(2000);return}
+   if(!p.ok)throw new Error(p.error||'The sheet did not accept the data.');hash=p.hash;pushed=true}
+  LSS(sk(),JSON.stringify(Object.fromEntries(out.filter(m=>!skip.includes(m[0])).map(m=>[m[0],m]))));
+  const tm=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  say('Synced '+tm+(nc||na?' · from sheet: '+nc+' changed'+(na?', '+na+' added':''):'')+(pushed?' · sheet updated':'')+(skip.length?' · skipped (unknown area): '+skip.join(', '):''))
+ }catch(e){say('Sync failed: '+(e&&e.message||e))}
+ finally{busy=false;applying=false;bN.disabled=false;if(again){again=false;schedule(1500)}}}
+function schedule(ms){clearTimeout(timer);if(!auto())return;timer=setTimeout(()=>cycle(false),ms)}
+bN.onclick=()=>cycle(true);
+bA.onclick=()=>{if(!auto()){if(!url(true))return;LSS('sfd_sheet_auto','1');paint();cycle(true)}else{LSS('sfd_sheet_auto','0');paint();clearTimeout(timer);say('Auto-sync is off.')}};
 bO.onclick=()=>{const u=LSG('sfd_sheet_open');if(u)window.open(u,'_blank','noopener')};
+/* triggers: website edits, month/year changes, every minute, and when the tab comes back into view */
+const _sv=sv;sv=function(){_sv.apply(this,arguments);if(!applying)schedule(4000)};
+const _ra=refreshAll;refreshAll=function(per){_ra.apply(this,arguments);if(per&&!applying)schedule(1200)};
+setInterval(()=>{if(auto()&&!document.hidden)cycle(false)},60000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)schedule(800)});
+if(auto())setTimeout(()=>cycle(false),2500);
 })();
