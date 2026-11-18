@@ -113,9 +113,10 @@
 <div class="f"><input id="nb" placeholder="Branch name"><select id="nar"></select><select id="ncl"><option value="A">1ST GRADE</option><option value="B">2ND GRADE</option><option value="C">3RD GRADE</option></select><input id="nm" type="number" min="0" placeholder="No. of mechanics"><input id="nt" type="number" min="0" placeholder="Monthly target (₱)"></div>
 <p><button class="btn" id="ab">+ Add branch</button> <button class="tbtn" id="rs">Reset to original list</button></p></div>
 <div class="card" style="margin-top:14px"><h2>Branch List</h2>
+<p class="sub" id="mgp" style="margin:0 0 10px"></p>
 <div class="tools"><input id="qm" placeholder="Search branch…"><select id="am"></select></div>
 <div class="tw"><table><thead><tr><th>#</th><th>Branch</th><th>Area</th><th>No. of Mechanics</th><th>Classification</th><th>Monthly Target</th><th>Ideal Daily Income</th><th></th></tr></thead><tbody id="mb"></tbody></table></div>
-<p class="sub" style="margin:10px 0 0">Mechanics, target and grade in this list are default values and stay fixed when you change the monthly or yearly view. Period-specific performance values remain on the Mechanic Performance page. Area is locked until you click Edit Area. Changes are stored in this browser.</p></div>
+<p class="sub" style="margin:10px 0 0">The Mechanics, Classification and Monthly Target columns follow the month selected on Mechanic Performance, so both pages always match. Area is locked until you click Edit Area. Changes are stored in this browser.</p></div>
 </section>
 <section class="sec" id="spbr"><div class="card"><h2>Spare Parts Branch Targets</h2><p class="sub">Set a separate monthly spare-parts sales target for each branch. Ideal daily spare-parts income = monthly target ÷ 26 working days.</p><div class="tools"><input id="qpt" placeholder="Search branch target…"></div><div class="tw"><table><thead><tr><th>Branch</th><th>Classification</th><th>Monthly Spare Parts Target</th><th>Ideal Daily Spare Parts Income</th></tr></thead><tbody id="sptb"></tbody></table></div></div></section>
 </main><dialog id="noticeDlg"><div class="notice-dlg-head"><div><h2>Additional branches below target</h2><div id="noticeDlgSub" class="sub"></div></div><button type="button" class="tbtn" id="closeNotices">Close</button></div><div id="noticeItems" class="notice-list"></div></dialog></div>
