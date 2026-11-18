@@ -371,6 +371,7 @@ function mg(){
  document.querySelectorAll('#mb .del').forEach(e=>e.onclick=()=>{const x=B[e.dataset.i];if(confirm('Delete '+x.b+'?')){B.splice(e.dataset.i,1);refreshAll()}})
 }
 $('#qm').oninput=$('#am').onchange=mg;
+document.querySelector('.nav button[data-s="mgr"]').addEventListener('click',mg);
 $('#mgy').onchange=$('#mgm').onchange=()=>{PER.y=+$('#mgy').value;PER.m=+$('#mgm').value;$('#ys').value=PER.y;$('#ms').value=PER.m;refreshAll(1)};
 $('#ab').onclick=()=>{const b=$('#nb').value.trim().toUpperCase();if(!b)return $('#nb').focus();if(B.some(x=>x.b==b)){alert('That branch already exists.');return}const x={b,m:+$('#nm').value||0,t:+$('#nt').value||0,a:0,ar:$('#nar').value,c:$('#ncl').value,spt:0};rc(x);B.unshift(x);['#nb','#nm','#nt'].forEach(s=>$(s).value='');refreshAll()};
 $('#rs').onclick=()=>{if(confirm('Clear all branches?')){load(JSON.parse(DEF));refreshAll()}};
