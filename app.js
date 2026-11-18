@@ -800,6 +800,9 @@ async function cycle(manual){
    if(j.found&&R.size){const useSheet=confirm('The Google Sheet already has data for '+MN[PER.m-1]+' '+PER.y+'.\n\nOK = start from the Google Sheet values.\nCancel = start from the website values (the sheet will be updated).');
     snap=useSheet?Object.fromEntries(L):Object.fromEntries(R)}
    else snap={}}
+  /* safety: if the website lost all its income for this month but the sheet still has it, bring the sheet data back instead of wiping the sheet */
+  const inc=rs=>[...rs].reduce((s,r)=>s+r[5]+r[7]+r[9]+r[11]+r[13],0);let restored=false;
+  if(snap&&Object.keys(snap).length&&inc(L.values())===0&&inc(R.values())>0&&inc(Object.values(snap))>0){snap=Object.fromEntries(L);restored=true}
   /* three-way merge, cell by cell */
   const names=[...new Set([...L.keys(),...R.keys()])],M=new Map();
   names.forEach(n=>{const l=L.get(n),r=R.get(n),s=snap[n];if(l&&!r){M.set(n,l);return}if(r&&!l){M.set(n,r);return}M.set(n,l.map((v,i)=>mer(v,r[i],s?s[i]:undefined)))});
@@ -822,7 +825,7 @@ async function cycle(manual){
   if(nc||na||pushed||manual){try{await yearPush()}catch(e){}}
   LSS(sk(),JSON.stringify(Object.fromEntries(out.filter(m=>!skip.includes(m[0])).map(m=>[m[0],m]))));
   const tm=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-  say('Synced '+tm+(nc||na?' · from sheet: '+nc+' changed'+(na?', '+na+' added':''):'')+(pushed?' · sheet updated':'')+(skip.length?' · skipped (unknown area): '+skip.join(', '):''))
+  say((restored?'Restored the month from the Google Sheet (the website had no income for it). ':'')+'Synced '+tm+(nc||na?' · from sheet: '+nc+' changed'+(na?', '+na+' added':''):'')+(pushed?' · sheet updated':'')+(skip.length?' · skipped (unknown area): '+skip.join(', '):''))
  }catch(e){say('Sync failed: '+(e&&e.message||e))}
  finally{busy=false;applying=false;bN.disabled=false;if(again){again=false;schedule(1500)}}}
 function schedule(ms){clearTimeout(timer);if(!auto())return;timer=setTimeout(()=>cycle(false),ms)}

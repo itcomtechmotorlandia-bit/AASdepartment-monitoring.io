@@ -11,7 +11,7 @@
   const SID = Math.random().toString(36).slice(2) + Date.now().toString(36);
   const origSet = Storage.prototype.setItem;
   let db, col, me, ready = false, firstSnap = true;
-  const lastPushed = {}, known = {}, timers = {};
+  const lastPushed = {}, known = {}, timers = {}, lastSid = {};
 
   function show() { const s = document.getElementById('sfdHide'); if (s) s.remove(); }
   function fatal(msg, retry) {
@@ -39,7 +39,7 @@
     Object.keys(metas).forEach(k => {
       const n = metas[k].n || 0, c = chunks[k] || []; let ok = true;
       for (let i = 0; i < n; i++) if (typeof c[i] !== 'string') ok = false;
-      known[k] = n;
+      known[k] = n; lastSid[k] = metas[k].sid || '';
       if (ok) out[k] = c.slice(0, n).join('');
     });
     return out;
@@ -49,11 +49,16 @@
     if (v == null || v === lastPushed[k]) return;
     const parts = []; for (let i = 0; i < v.length; i += CH) parts.push(v.slice(i, i + CH));
     if (!parts.length) parts.push('');
-    const b = db.batch();
-    parts.forEach((p, i) => b.set(col.doc(k + '~' + i), { s: p }));
-    b.set(col.doc(k), { n: parts.length, t: firebase.firestore.FieldValue.serverTimestamp(), by: me.name, sid: SID });
-    for (let i = parts.length; i < (known[k] || 0); i++) b.delete(col.doc(k + '~' + i));
-    await b.commit();
+    /* Safety check: if another person/computer saved this data after we loaded it, do NOT overwrite it with our older copy. */
+    await db.runTransaction(async tx => {
+      const m = await tx.get(col.doc(k)), cur = m.exists ? (m.data() || {}) : {};
+      const rs = cur.sid || '';
+      if (m.exists && rs !== SID && rs !== (lastSid[k] || '')) { const e = new Error('stale'); e.code = 'stale'; e.by = cur.by; throw e; }
+      parts.forEach((p, i) => tx.set(col.doc(k + '~' + i), { s: p }));
+      tx.set(col.doc(k), { n: parts.length, t: firebase.firestore.FieldValue.serverTimestamp(), by: me.name, sid: SID });
+      for (let i = parts.length; i < (known[k] || 0); i++) tx.delete(col.doc(k + '~' + i));
+    });
+    lastSid[k] = SID;
     known[k] = parts.length; lastPushed[k] = v;
   }
   function status(t, bad) {
@@ -65,7 +70,11 @@
     timers[k] = setTimeout(async () => {
       delete timers[k];
       try { await push(k); if (!Object.keys(timers).length) status('saved ✓'); }
-      catch (e) { console.error('Save failed', k, e); status('NOT saved - check internet', true); }
+      catch (e) {
+        console.error('Save failed', k, e);
+        if (e && e.code === 'stale') { status('NOT saved - newer data exists', true); banner(e.by || 'Someone', 'saved newer data. Your last change was NOT saved, so nothing was overwritten. Refresh to load their version, then redo your change.'); }
+        else status('NOT saved - check internet', true);
+      }
     }, SAVE_DELAY);
   }
   async function flushAll() {
@@ -80,12 +89,12 @@
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') Object.keys(timers).forEach(k => { clearTimeout(timers[k]); delete timers[k]; push(k).catch(() => {}); }); });
     window.addEventListener('beforeunload', e => { if (Object.keys(timers).length) { e.preventDefault(); e.returnValue = ''; } });
   }
-  function banner(by) {
-    if (document.getElementById('sfdBn')) return;
+  function banner(by, msg) {
+    if (document.getElementById('sfdBn')) { if (msg) document.querySelector('#sfdBn span').textContent = '⚠️ ' + by + ' ' + msg; return; }
     const d = document.createElement('div'); d.id = 'sfdBn';
     d.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:99999;background:#1b2d50;color:#fff;padding:12px 16px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.4);font:14px system-ui,sans-serif;display:flex;gap:12px;align-items:center';
     d.innerHTML = '<span></span><button style="border:0;border-radius:8px;padding:8px 12px;background:#3b82f6;color:#fff;font:inherit;cursor:pointer">Refresh now</button>';
-    d.querySelector('span').textContent = '🔄 ' + by + ' updated the shared data.';
+    d.querySelector('span').textContent = msg ? '⚠️ ' + by + ' ' + msg : '🔄 ' + by + ' updated the shared data.';
     d.querySelector('button').onclick = () => { Object.keys(timers).forEach(k => { clearTimeout(timers[k]); delete timers[k]; }); location.reload(); };
     document.body.appendChild(d);
   }
