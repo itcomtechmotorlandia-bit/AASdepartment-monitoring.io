@@ -360,6 +360,7 @@ $('#asq').oninput=drawAsr;
 function refreshAll(per){if(!per)wb();sp();fillBr();sv();drawK1();drawCh();rt();drawAsr();drawPartsKpis();drawPartsTargets();fo();mg();anim()}
 function mg(){
  const q=$('#qm').value.toLowerCase(),ag=$('#am').value;
+ {const y0=new Date().getFullYear(),ys=[y0-2,y0-1,y0,y0+1,y0+2];if(!ys.includes(PER.y))ys.push(PER.y);$('#mgy').innerHTML=ys.sort().map(y=>'<option'+(y==PER.y?' selected':'')+'>'+y+'</option>').join('');$('#mgm').innerHTML='<option value="0">Whole year (default)</option>'+MN.map((n,i)=>'<option value="'+(i+1)+'"'+(i+1==PER.m?' selected':'')+'>'+n+'</option>').join('');$('#mgy').value=PER.y;$('#mgm').value=PER.m}
  {const n=$('#mgp');if(n)n.innerHTML=PER.m?'Showing and editing the <b>'+MN[PER.m-1]+' '+PER.y+'</b> values. Change the month at the top of Mechanic Performance, or choose “Whole year” to edit the default values.':'Showing and editing the <b>default</b> values, used for months that have no values of their own.'}
  $('#mb').innerHTML=B.map((x,i)=>({x,i})).filter(o=>o.x.b.toLowerCase().includes(q)&&(!ag||o.x.ar==ag)).map(({x,i})=>{
   const m=PER.m?x.m:(x.dm??x.m),t=PER.m?x.t:(x.dt??x.t),c=PER.m?x.c:(x.dc??x.c);
@@ -370,6 +371,7 @@ function mg(){
  document.querySelectorAll('#mb .del').forEach(e=>e.onclick=()=>{const x=B[e.dataset.i];if(confirm('Delete '+x.b+'?')){B.splice(e.dataset.i,1);refreshAll()}})
 }
 $('#qm').oninput=$('#am').onchange=mg;
+$('#mgy').onchange=$('#mgm').onchange=()=>{PER.y=+$('#mgy').value;PER.m=+$('#mgm').value;$('#ys').value=PER.y;$('#ms').value=PER.m;refreshAll(1)};
 $('#ab').onclick=()=>{const b=$('#nb').value.trim().toUpperCase();if(!b)return $('#nb').focus();if(B.some(x=>x.b==b)){alert('That branch already exists.');return}const x={b,m:+$('#nm').value||0,t:+$('#nt').value||0,a:0,ar:$('#nar').value,c:$('#ncl').value,spt:0};rc(x);B.unshift(x);['#nb','#nm','#nt'].forEach(s=>$(s).value='');refreshAll()};
 $('#rs').onclick=()=>{if(confirm('Clear all branches?')){load(JSON.parse(DEF));refreshAll()}};
 const AO=Object.keys(AREAS),GR={A:'1ST GRADE',B:'2ND GRADE',C:'3RD GRADE'};
