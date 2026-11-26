@@ -29,19 +29,18 @@
 
   /* ---------- Firestore sync ---------- */
   async function loadRemote() {
-    const snap = await col.get(), metas = {}, chunks = {};
-    snap.forEach(d => {
-      const id = d.id, x = d.data();
-      if (id.indexOf('~') > -1) { const p = id.split('~'); (chunks[p[0]] = chunks[p[0]] || [])[+p[1]] = x.s; }
-      else metas[id] = x;
-    });
+    /* Only the 15 data keys are read. Uploaded PDF files live in the same collection but are fetched only when opened. */
     const out = {};
-    Object.keys(metas).forEach(k => {
-      const n = metas[k].n || 0, c = chunks[k] || []; let ok = true;
-      for (let i = 0; i < n; i++) if (typeof c[i] !== 'string') ok = false;
-      known[k] = n; lastSid[k] = metas[k].sid || '';
-      if (ok) out[k] = c.slice(0, n).join('');
-    });
+    await Promise.all(KEYS.map(async k => {
+      const m = await col.doc(k).get();
+      if (!m.exists) return;
+      const meta = m.data() || {}, n = meta.n || 0;
+      known[k] = n; lastSid[k] = meta.sid || '';
+      const ds = await Promise.all(Array.from({ length: n }, (_, i) => col.doc(k + '~' + i).get()));
+      let ok = true;
+      const parts = ds.map(d => { const s = d.exists ? (d.data() || {}).s : undefined; if (typeof s !== 'string') ok = false; return s; });
+      if (ok) out[k] = parts.join('');
+    }));
     return out;
   }
   async function push(k) {
