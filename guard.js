@@ -143,7 +143,7 @@
         try { await sfdAuth.signOut(); } catch (e) {}
         localStorage.removeItem('sfd_login_t'); toLogin();
       });
-      const s = document.createElement('script'); s.src = 'app.js';
+      const s = document.createElement('script'); s.src = 'app.js?v=' + Date.now();
       s.onload = () => { show(); listen(); };
       s.onerror = () => fatal('app.js could not be loaded. Make sure app.js is uploaded next to index.html.');
       document.body.appendChild(s);
