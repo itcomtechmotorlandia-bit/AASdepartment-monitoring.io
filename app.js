@@ -474,7 +474,7 @@ function umTypeParts(list){const tot=list.length,cnt={};list.forEach(o=>{const v
  const sl=umSlices(rows,tot,col,(k,n)=>{const sub=list.filter(o=>((o.r.v||'').trim()||'Not specified')==k),b=umTop(sub,r=>r.b),p=umTop(sub,r=>r.p);return'<b>'+esc(k)+'</b><br>'+n+' of '+tot+' record'+(tot>1?'s':'')+' · <b>'+(n/tot*100).toFixed(1)+'%</b><br>Most in branch: '+b.names.map(esc).join(' / ')+' ('+b.n+')<br>Position: '+p.names.map(esc).join(' / ')+' ('+p.n+')'},k=>['v',k]);
  return{tb,tp,svg:'<svg viewBox="0 0 220 220" role="img" aria-label="Pie chart of violations" style="display:block;margin:0 auto;width:min(260px,100%);height:auto;overflow:visible">'+sl+'</svg>',
  legend:rows.map(([k,n])=>{const sub=list.filter(o=>((o.r.v||'').trim()||'Not specified')==k),b=umTop(sub,r=>r.b),p=umTop(sub,r=>r.p);return'<div class="umrow" data-kind="v" data-k="'+esc(k)+'" title="Click for the summary and pie graph" style="padding:8px 6px;border-bottom:1px solid var(--bd)"><div style="display:flex;align-items:center;gap:10px"><i style="width:12px;height:12px;border-radius:3px;background:'+col[k]+';flex:0 0 auto"></i><span style="flex:1;font-weight:600">'+esc(k)+'</span><span class="sub num">'+n+' record'+(n>1?'s':'')+'</span><b class="num" style="min-width:56px;text-align:right">'+(n/tot*100).toFixed(1)+'%</b></div><div class="sub" style="margin:3px 0 0 22px;font-size:12px;overflow-wrap:anywhere">Most in branch: <b style="color:var(--tx)">'+b.names.map(esc).join(' / ')+'</b> ('+b.n+') · Position: <b style="color:var(--tx)">'+p.names.map(esc).join(' / ')+'</b> ('+p.n+')</div></div>'}).join('')}}
-function umCharts(list){const box=$('#umpie');if(!box)return;const old=$('#umpieb');if(old)old.remove();const tot=list.length;umCur=list;
+function umCharts(list){const box=$('#umpie');if(!box)return;const old=$('#umpieb');if(old)old.remove();const tot=list.length;umCur=window.__umCur=list;
  if(!tot){box.innerHTML='<h2>Violation Breakdown</h2><p class="sub" style="margin:0">No violation records to chart.</p>';return}
  const T=umTypeParts(list),Bp=umBranchParts(list),tile=(lab,t)=>'<div class="card" style="padding:12px 14px;min-width:0"><div class="sub">'+lab+'</div><div style="font-weight:700;font-size:16px;margin:2px 0;overflow-wrap:anywhere">'+t.names.map(esc).join(' / ')+'</div><div class="sub">'+t.n+' violation'+(t.n>1?'s':'')+' · '+(t.n/tot*100).toFixed(1)+'% of all'+(t.names.length>1?' (tie)':'')+'</div></div>',
  h3=t=>'<div style="font-weight:700;margin:0 0 10px;text-align:center">'+t+'</div>',h4=t=>'<div style="font-weight:700;margin:0 0 2px">'+t+'</div><div class="sub" style="font-size:12px;margin:0 0 4px">Click a row for its summary and pie graph</div>';
@@ -555,7 +555,7 @@ $('#teaall').onclick=()=>{P.querySelectorAll('#teal input').forEach(c=>{c.checke
 $('#teaclr').onclick=()=>{teSel.clear();sync();list()};$('#teadone').onclick=()=>{P.hidden=true};
 document.addEventListener('click',e=>{if(!P.hidden&&!$('#teaw').contains(e.target))P.hidden=true});
 list()}
-function draw(){const mEl=$('#tefm'),mPrev=mEl.value,ms=[...new Set(X.map(r=>(r.d||'').slice(0,7)).filter(Boolean))].sort().reverse();mEl.innerHTML='<option value="">All months</option>'+ms.map(k=>'<option value="'+k+'">'+MN[+k.slice(5,7)-1]+' '+k.slice(0,4)+'</option>').join('');mEl.value=ms.includes(mPrev)?mPrev:'';const dEl=$('#tefd'),dPrev=dEl.value,DP=['ADMIN DEPT.','ASSAP DEPT.','IT DEPT.'].concat([...new Set(X.map(r=>r.dp).filter(v=>v&&!['ADMIN DEPT.','ASSAP DEPT.','IT DEPT.'].includes(v)))]);dEl.innerHTML='<option value="">All departments</option>'+DP.map(v=>'<option>'+esc(v)+'</option>').join('');dEl.value=DP.includes(dPrev)?dPrev:'';const fd=dEl.value,fm=mEl.value,q=$('#teq').value.toLowerCase(),list=X.map((r,i)=>({r,i})).filter(o=>(!fm||(o.r.d||'').slice(0,7)==fm)&&(!fd||o.r.dp==fd)&&(!q||Object.values(o.r).join(' ').toLowerCase().includes(q)));
+function draw(){const mEl=$('#tefm'),mPrev=mEl.value,ms=[...new Set(X.map(r=>(r.d||'').slice(0,7)).filter(Boolean))].sort().reverse();mEl.innerHTML='<option value="">All months</option>'+ms.map(k=>'<option value="'+k+'">'+MN[+k.slice(5,7)-1]+' '+k.slice(0,4)+'</option>').join('');mEl.value=ms.includes(mPrev)?mPrev:'';const dEl=$('#tefd'),dPrev=dEl.value,DP=['ADMIN DEPT.','ASSAP DEPT.','IT DEPT.'].concat([...new Set(X.map(r=>r.dp).filter(v=>v&&!['ADMIN DEPT.','ASSAP DEPT.','IT DEPT.'].includes(v)))]);dEl.innerHTML='<option value="">All departments</option>'+DP.map(v=>'<option>'+esc(v)+'</option>').join('');dEl.value=DP.includes(dPrev)?dPrev:'';const fd=dEl.value,fm=mEl.value,q=$('#teq').value.toLowerCase(),list=X.map((r,i)=>({r,i})).filter(o=>(!fm||(o.r.d||'').slice(0,7)==fm)&&(!fd||o.r.dp==fd)&&(!q||Object.values(o.r).join(' ').toLowerCase().includes(q)));window.__teList=list.map(o=>o.r);
 $('#tet2').innerHTML=list.length?list.map(o=>'<tr><td class="num">'+esc(o.r.d)+'</td><td>'+esc(o.r.a)+'</td><td>'+esc(o.r.p)+'</td><td>'+esc(o.r.k)+'</td><td>'+esc(o.r.dp)+'</td><td>'+esc(o.r.pe)+'</td><td class="num">'+F(o.r.g)+'</td><td class="num">'+F(o.r.m)+'</td><td class="num">'+F(o.r.o)+'</td><td class="num"><b>'+F(o.r.t)+'</b></td><td style="white-space:nowrap"><button class="tbtn teed" data-i="'+o.i+'">✏️ Edit</button> <button class="tbtn tedel" data-i="'+o.i+'">🗑 Delete</button></td></tr>').join(''):'<tr><td colspan="11" class="sub">No travel expenses yet.</td></tr>';
 const s=k=>list.reduce((a,o)=>a+(+o.r[k]||0),0);$('#tef').innerHTML=list.length?'<tr><td>TOTAL</td><td></td><td></td><td></td><td></td><td></td><td class="num">'+F(s('g'))+'</td><td class="num">'+F(s('m'))+'</td><td class="num">'+F(s('o'))+'</td><td class="num">'+F(s('t'))+'</td><td></td></tr>':''}
 const live=()=>$('#tet').textContent='Total Expense: '+peso(n('teg')+n('tem')+n('teo'));
@@ -986,3 +986,74 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)schedule(8
 if(auto())setTimeout(()=>cycle(false),2500);
 })();
 
+
+/* ===== Uniform Monitoring: Download button (PDF with pie graphs / image of the pies / Excel data) ===== */
+(function(){
+const D=window.__dw,fm=document.getElementById('umfm');if(!D||!fm||document.getElementById('umdl'))return;
+const b=document.createElement('button');b.type='button';b.id='umdl';b.className='tbtn';b.textContent='⬇ Download';b.title='Download the data and the pie graphs';fm.insertAdjacentElement('afterend',b);
+const V=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim(),F='Inter, Arial, Helvetica, sans-serif';
+const nm=v=>String(v||'').trim()||'Not specified';
+const recs=()=>(window.__umCur||[]).map(o=>o.r);
+function filt(){const a=document.getElementById('umf'),m=document.getElementById('umfm'),q=document.getElementById('umq').value.trim(),p=[];
+ p.push(a&&a.value?a.selectedOptions[0].text:'All areas');p.push(m&&m.value?m.selectedOptions[0].text:'All months');if(q)p.push('Search: "'+q+'"');return p.join(' · ')}
+function count(list,key,max){const c={};list.forEach(r=>{const k=nm(key(r));c[k]=(c[k]||0)+1});const e=Object.entries(c).sort((x,y)=>y[1]-x[1]||x[0].localeCompare(y[0]));return max?e.slice(0,max):e}
+/* groups: title, rows [name,count], colours (read from the pie legend on screen), svg */
+function groups(){const list=recs(),det=document.getElementById('umdet'),svgs=[...document.querySelectorAll('#umpie svg')];
+ const cols=[...det.children].map(g=>[...g.querySelectorAll('.umrow i')].map(i=>i.style.background||getComputedStyle(i).backgroundColor));
+ const v=count(list,r=>r.v),br=count(list,r=>r.b,8);
+ return[{t:'By violation',rows:v,tot:list.length,col:cols[0]||[],svg:svgs[0]},{t:'By branch (top '+br.length+')',rows:br,tot:br.reduce((s,z)=>s+z[1],0),col:cols[1]||[],svg:svgs[1]}]}
+function svgImg(svg,W){return new Promise((res,rej)=>{const vb=svg.viewBox.baseVal,H=Math.round(W*vb.height/vb.width),c=svg.cloneNode(true);
+ c.setAttribute('xmlns','http://www.w3.org/2000/svg');c.setAttribute('width',W);c.setAttribute('height',H);c.removeAttribute('style');c.setAttribute('font-family',F);
+ const s=new XMLSerializer().serializeToString(c).replace(/var\((--[\w-]+)(?:\s*,\s*([^)]+))?\)/g,(m,n,f)=>n=='--card'?'#ffffff':(V(n)||(f||'#fff').trim()));
+ const im=new Image();im.onload=()=>res({im,H});im.onerror=()=>rej(new Error('Could not draw the pie graph.'));im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s)})}
+async function canvas(light){const G=groups(),S=2,W=1100,P=28,colW=(W-P*3)/2,PW=300,bg=light?'#ffffff':(V('--card')||'#fff'),tx=light?'#111827':(V('--tx')||'#000'),mu=light?'#6b7280':(V('--mu')||'#666');
+ const imgs=await Promise.all(G.map(g=>svgImg(g.svg,PW)));const lh=24,legH=Math.max(...G.map(g=>g.rows.length))*lh;
+ const H=P+54+Math.max(...imgs.map(i=>i.H))+16+legH+P,cv=document.createElement('canvas');cv.width=W*S;cv.height=H*S;const x=cv.getContext('2d');x.scale(S,S);x.fillStyle=bg;x.fillRect(0,0,W,H);
+ x.fillStyle=tx;x.font='700 20px '+F;x.fillText('Uniform Monitoring - Violation Breakdown',P,P+14);x.fillStyle=mu;x.font='13px '+F;x.fillText(recs().length+' record'+(recs().length==1?'':'s')+' · '+filt(),P,P+36);
+ G.forEach((g,i)=>{const X=P+i*(colW+P),cx=X+colW/2;let y=P+66;x.fillStyle=tx;x.font='700 15px '+F;x.textAlign='center';x.fillText(g.t,cx,y);x.textAlign='left';y+=10;
+  x.drawImage(imgs[i].im,cx-PW/2,y,PW,imgs[i].H);y+=imgs[i].H+22;
+  g.rows.forEach(([k,n],j)=>{x.fillStyle=g.col[j]||'#94a3b8';x.fillRect(X,y-10,12,12);x.fillStyle=tx;x.font='13px '+F;
+   const pc=(n/g.tot*100).toFixed(1)+'%',txt=k.length>34?k.slice(0,33)+'…':k;x.fillText(txt,X+20,y);x.textAlign='right';x.fillText(n+'  ·  '+pc,X+colW,y);x.textAlign='left';y+=lh})});
+ return cv}
+const blobOf=cv=>new Promise((r,j)=>cv.toBlob(q=>q?r(q):j(new Error('Could not create the image.')),'image/png'));
+function need(){if(!recs().length)throw new Error('There are no records to download for the current filters.')}
+async function png(){need();D.saveFile('uniform-monitoring-pie-'+new Date().toISOString().slice(0,10)+'.png',await blobOf(await canvas(true)));D.say('Image downloaded.')}
+function rowsOf(){return recs().slice().sort((a,c)=>String(c.d||'').localeCompare(String(a.d||''))).map(r=>[nm(r.b),r.a||'',r.p||'',r.n||'',r.v||'',r.d||'',r.m||''])}
+async function pdf(){need();const J=window.jspdf&&window.jspdf.jsPDF;if(!J)throw new Error('The PDF library did not load.');
+ const cv=await canvas(true),doc=new J({orientation:'landscape',unit:'mm',format:'a4'});if(typeof doc.autoTable!='function')throw new Error('The PDF table library did not load.');
+ const pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight(),w=pw-20,h=w*cv.height/cv.width;
+ doc.addImage(cv.toDataURL('image/png'),'PNG',10,8,w,Math.min(h,ph-16));doc.addPage();
+ doc.setFontSize(14);doc.text('Uniform Monitoring - Records',10,12);doc.setFontSize(9);doc.text(filt(),10,18);
+ doc.autoTable({head:[['Branch','Area','Position','Name','Violation','Date','Remarks']],body:rowsOf(),startY:22,theme:'grid',styles:{fontSize:8,cellPadding:1.6,overflow:'linebreak'},headStyles:{fillColor:[20,40,75],textColor:255},margin:{left:10,right:10,top:12,bottom:10}});
+ D.saveFile('uniform-monitoring-'+new Date().toISOString().slice(0,10)+'.pdf',new Blob([doc.output('arraybuffer')],{type:'application/pdf'}));D.say('PDF downloaded.')}
+function xlsx(){need();if(!window.XLSX)throw new Error('The Excel library did not load.');const wb=XLSX.utils.book_new(),G=groups(),list=recs();
+ const ws=XLSX.utils.aoa_to_sheet([['Branch','Area','Position','Name','Violation','Date','Remarks']].concat(rowsOf()));ws['!cols']=[22,18,18,28,20,12,30].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws,'Records');
+ const S=[['Uniform Monitoring - Summary'],[filt()],['Total records',list.length],[]];
+ G.forEach(g=>{S.push([g.t,'Records','% of '+(g===G[0]?'all':'top branches')]);g.rows.forEach(([k,n])=>S.push([k,n,+(n/g.tot*100).toFixed(1)]));S.push([])});
+ const ss=XLSX.utils.aoa_to_sheet(S);ss['!cols']=[{wch:34},{wch:12},{wch:16}];XLSX.utils.book_append_sheet(wb,ss,'Summary');
+ D.saveFile('uniform-monitoring-'+new Date().toISOString().slice(0,10)+'.xlsx',new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));D.say('Excel file downloaded (Records and Summary sheets).')}
+b.onclick=()=>D.ask('Download Uniform Monitoring','Follows the current filters: '+filt()+'.',[['📄 PDF - pie graphs + data',pdf],['🖼 Pie graphs (.png)',png],['📊 Excel - data (.xlsx)',async()=>xlsx()]])})();
+
+/* ===== Travel Expense: Download button (Excel / PDF) beside the department filter ===== */
+(function(){
+const D=window.__dw,fd=document.getElementById('tefd');if(!D||!fd||document.getElementById('tedl'))return;
+const b=document.createElement('button');b.type='button';b.id='tedl';b.className='tbtn';b.textContent='⬇ Download';b.title='Download the travel expense data';fd.insertAdjacentElement('afterend',b);
+const HEAD=['Date','Branch','Particulars','Remarks','Department','Personnel','Gas Allowance','Meal Allowance','Others','Total Expense'];
+const num=v=>+v||0,list=()=>(window.__teList||[]);
+function filt(){const m=document.getElementById('tefm'),d=document.getElementById('tefd'),q=document.getElementById('teq').value.trim(),p=[];
+ p.push(m&&m.value?m.selectedOptions[0].text:'All months');p.push(d&&d.value?d.value:'All departments');if(q)p.push('Search: "'+q+'"');return p.join(' · ')}
+function rows(){return list().slice().sort((a,c)=>String(c.d||'').localeCompare(String(a.d||''))).map(r=>[r.d||'',r.a||'',r.p||'',r.k||'',r.dp||'',r.pe||'',num(r.g),num(r.m),num(r.o),num(r.t)])}
+const tot=r=>[6,7,8,9].map(i=>r.reduce((s,x)=>s+x[i],0));
+function need(){if(!list().length)throw new Error('There are no travel expenses to download for the current filters.')}
+const stamp=()=>new Date().toISOString().slice(0,10);
+function xlsx(){need();if(!window.XLSX)throw new Error('The Excel library did not load.');const r=rows(),t=tot(r),wb=XLSX.utils.book_new();
+ const ws=XLSX.utils.aoa_to_sheet([HEAD].concat(r).concat([['TOTAL','','','','','',t[0],t[1],t[2],t[3]]]));ws['!cols']=[12,20,30,22,16,22,14,14,12,14].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws,'Travel Expense');
+ D.saveFile('travel-expense-'+stamp()+'.xlsx',new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));D.say('Excel file downloaded.')}
+function pdf(){need();const J=window.jspdf&&window.jspdf.jsPDF;if(!J)throw new Error('The PDF library did not load.');const doc=new J({orientation:'landscape',unit:'mm',format:'a4'});
+ if(typeof doc.autoTable!='function')throw new Error('The PDF table library did not load.');
+ const r=rows(),t=tot(r),php=v=>'PHP '+Number(v).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
+ doc.setFontSize(14);doc.text('Travel Expense',10,12);doc.setFontSize(9);doc.text(filt()+'  ·  '+r.length+' record'+(r.length==1?'':'s'),10,18);
+ doc.autoTable({head:[HEAD],body:r.map(x=>x.map((v,i)=>i>=6?php(v):v)).concat([['TOTAL','','','','','',php(t[0]),php(t[1]),php(t[2]),php(t[3])]]),startY:22,theme:'grid',styles:{fontSize:7.5,cellPadding:1.5,overflow:'linebreak'},headStyles:{fillColor:[20,40,75],textColor:255},columnStyles:{6:{halign:'right'},7:{halign:'right'},8:{halign:'right'},9:{halign:'right',fontStyle:'bold'}},margin:{left:10,right:10,top:12,bottom:10},
+  didParseCell:d=>{if(d.section=='body'&&d.row.index==r.length){d.cell.styles.fontStyle='bold';d.cell.styles.fillColor=[230,235,244]}}});
+ D.saveFile('travel-expense-'+stamp()+'.pdf',new Blob([doc.output('arraybuffer')],{type:'application/pdf'}));D.say('PDF downloaded.')}
+b.onclick=()=>D.ask('Download Travel Expense','Follows the current filters: '+filt().replace(/\.$/,'')+'.',[['📊 Excel (.xlsx)',async()=>xlsx()],['📄 PDF (.pdf)',async()=>pdf()]])})();
